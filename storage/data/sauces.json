@@ -1,18 +1,26 @@
 [
   {
     "name": "Garlic Yogurt",
-    "base": "yogurt"
+    "base": "yogurt",
+    "heat": 2,
+    "calories": 70
   },
   {
     "name": "Dill Yogurt",
-    "base": "yogurt"
+    "base": "yogurt",
+    "heat": 1,
+    "calories": 55
   },
   {
     "name": "Ginger Soy",
-    "base": "soy"
+    "base": "soy",
+    "heat": 3,
+    "calories": 48
   },
   {
     "name": "Miso Sesame",
-    "base": "soy"
+    "base": "soy",
+    "heat": 4,
+    "calories": 62
   }
 ]

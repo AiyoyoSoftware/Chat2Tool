@@ -317,6 +317,81 @@ h3 {
   padding: 0.85rem 1rem;
 }
 
+.imd-field input,
+.imd-field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 0.85rem 1rem;
+}
+
+.imd-field textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.imd-field-error {
+  min-height: 1.1rem;
+  font-size: 0.85rem;
+  color: #9f2f2f;
+}
+
+.is-invalid :is(input, textarea, select),
+.is-invalid.imd-check-field,
+.is-invalid .imd-toggle-button,
+.is-invalid .imd-radio-options {
+  border-color: rgba(159, 47, 47, 0.45);
+}
+
+.imd-radio-group {
+  border: 0;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.imd-radio-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.imd-radio-option,
+.imd-check-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.imd-toggle-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+}
+
+.imd-toggle-pill {
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  background: rgba(34, 109, 67, 0.1);
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.imd-button-row {
+  margin: 0.25rem 0 0.75rem;
+}
+
 .imd-callout {
   margin: 1rem 0;
   padding: 16px 18px;

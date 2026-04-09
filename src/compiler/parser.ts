@@ -259,7 +259,7 @@ function parseNodes(
     }
 
     if (directive.name === 'use') {
-      const name = directive.argument?.trim() || directive.attrs.name;
+      const name = directive.argument?.trim().split(/\s+/)[0] || directive.attrs.name;
       if (!name) {
         issues.push({ message: '@#use requires a definition name.', line: directive.line });
         continue;

@@ -3,7 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import { readSourceFile } from '../lib/storage';
 import { sourcePathForSlug } from '../lib/config';
 
-const llmInstructions = `Generate 1 page as a single .md file for Interactive Markdown App Spec v0.1.
+const llmInstructions = `Generate 1 interactive page as a single .md file for llastro extended spec.
 
 Output rules:
 - Output Markdown only
@@ -16,26 +16,51 @@ Front matter:
 - Optional: description, state, data, computed, meta
 - theme in: default, recipe, guide
 - layout in: article, tool, dashboard
-- meta keys: tags, published, accent
+- meta keys: tags, published, accent, persist
 
 Runtime API:
 - state: mutable client state
 - data: inline JSON, /data/file.json, or https://... JSON
 - computed: derived expressions from state/data
+- meta.persist: state keys persisted to localStorage
 
 Syntax:
 - Interpolation: {{ expression }}
-- If block:
-  @#if expression
+- Branching:
+  @#if expr
+  ...
+  @#elseif expr
+  ...
+  @#else
   ...
   @#endif
-- For block:
-  @#for item in expression
+- Empty block:
+  @#empty expr
+  ...
+  @#endempty
+- Loop:
+  @#for item in expr
   ...
   @#endfor
+- Macros:
+  @#define name="card"
+  ...
+  @#enddefine
+  @#use card with="item=featured,mode=view"
 
 Built-ins:
 - @#select bind="stateKey" options="a,b" label="..."
+- @#input bind="query" label="..." type="text|number|email" required="true" min="1" max="10" match="regex" url="true"
+- @#textarea bind="notes" label="..."
+- @#checkbox bind="flag" label="..."
+- @#radio bind="view" options="grid,list" label="..."
+- @#range bind="score" min="0" max="100" step="5" label="..."
+- @#toggle bind="open" label="..."
+- @#button label="Grid" set="view=grid"
+- @#button label="Add tag" patch="filters.tags += spicy"
+- @#button label="Reset" reset="view,query"
+- @#button label="Refresh" refresh="sauces"
+- @#button label="Copy" copy="summary"
 - @#callout type="info|warning|success" title="..."
   ...
   @#endcallout
@@ -47,16 +72,21 @@ Built-ins:
 Expressions:
 - values: strings, numbers, booleans, null, arrays, objects, identifiers
 - ops: ., [], ==, !=, and, or, not, +
-- pipes: where(field,value), length, join(sep), first, default(value)
-- examples: {{ base }}, {{ matching | length }}, sauces | where("base", base)
+- pipes: where, length, join, first, default, sort, map, pluck, groupBy, contains, sum, min, max, slice
+- helpers: invalid("field"), required(value), min(value,n), max(value,n), match(value,regex), loading("key"), error("key")
+- shorthand allowed in @#if: loading:sauces, error:sauces
+- examples: {{ base }}, {{ matching | length }}, sauces | where("base", base) | sort("name")
 
 Authoring rules:
 - Keep everything one-page and paste-ready
 - Prefer local or inline data unless remote fetch is clearly useful
-- Use declared state keys only in bind=
+- Use declared state keys only in bind= or button actions
 - Use only approved themes, layouts, keys, directives, and expression features
 - Make the UI coherent and polished within the chosen theme/layout
 - If interactive, include sensible default state
+- Prefer declarative directives and button actions over appjs
+- Use url="true" on state you want sharable in the query string
+- Use @#empty for empty results and loading/error blocks for remote JSON
 
 Minimal shape:
 ---
@@ -67,6 +97,8 @@ layout: tool
 description: Short summary
 state:
   choice: a
+  query: ""
+  view: list
 data:
   items:
     - name: Alpha
@@ -76,16 +108,29 @@ computed:
 meta:
   tags: [demo]
   published: true
+  persist: [choice, view]
 ---
 
 # Example
 
 @#select bind="choice" options="a,b" label="Choose"
+@#input bind="query" label="Query" required="true" url="true"
+@#radio bind="view" options="list,cards" label="View"
 
-@#if filtered
+@#empty filtered
+No matching items.
+@#endempty
+
+@#if invalid("query")
+@#callout type="warning" title="Query"
+Use only valid input.
+@#endcallout
+@#elseif filtered and view == "cards"
 @#for item in filtered
 - {{ item.name }}
 @#endfor
+@#else
+@#json-list source="filtered" field="name"
 @#endif`;
 
 let initialSource = `---
@@ -93,27 +138,70 @@ title: Sauce Generator
 slug: sauce-generator
 theme: recipe
 layout: tool
-description: Generate low-calorie sauce ideas
+description: Explore sauces with persisted controls and reusable result cards
 state:
   base: yogurt
+  view: cards
+  query: ""
+  heat: 3
+  showTips: true
 data:
   sauces: /data/sauces.json
 computed:
-  matching: sauces | where("base", base)
+  matching: sauces | where("base", base) | sort("name")
+  names: matching | pluck("name") | join(", ")
 meta:
   tags: [recipes, sauces, tool]
   published: true
+  persist: [base, view, query, heat]
 ---
 
 # Sauce Generator
 
-@#select bind="base" options="yogurt,soy" label="Choose a base"
+Pick a base, switch layouts, and preview a more capable one-page app contract.
+
+@#define name="sauce-card"
+### {{ item.name }}
+- Base: {{ item.base }}
+- Heat: {{ item.heat }}
+- Calories: {{ item.calories }}
+@#enddefine
+
+@#select bind="base" options="yogurt,soy" label="Choose a base" url="true"
+@#radio bind="view" options="cards,list" label="View"
+@#input bind="query" label="Notes query" match="^[A-Za-z ]*$" placeholder="Letters only"
+@#range bind="heat" label="Heat target" min="1" max="5" step="1"
+@#toggle bind="showTips" label="Show tip"
+@#button label="Card view" set="view=cards"
+@#button label="List view" set="view=list"
+@#button label="Reset filters" reset="base,view,query,heat"
+@#button label="Copy names" copy="names"
+
+@#if showTips
+@#callout type="info" title="Starter formula"
+Use yogurt + acid + one savory flavor.
+@#endcallout
+@#endif
+
+@#if invalid("query")
+@#callout type="warning" title="Query format"
+Use letters and spaces only in the notes query field.
+@#endcallout
+@#endif
 
 ## Matching sauces
 
+@#empty matching
+No sauces currently match {{ base }}.
+@#endempty
+
+@#if matching and view == "cards"
 @#for item in matching
-- {{ item.name }}
+@#use sauce-card with="item=item"
 @#endfor
+@#else
+@#json-list source="matching" field="name"
+@#endif
 `;
 
 try {
