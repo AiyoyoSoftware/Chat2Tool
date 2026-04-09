@@ -1,0 +1,30 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import InteractivePage from '../../components/InteractivePage.astro';
+import { loadCompiledPage } from '../../compiler/compile';
+
+const slug = Astro.params.slug!;
+let page = null;
+
+try {
+  page = await loadCompiledPage(slug);
+} catch {
+  Astro.response.status = 404;
+}
+---
+
+<BaseLayout
+  title={page ? `${page.frontmatter.title} | llastro` : 'Page not found | llastro'}
+  description={page?.frontmatter.description ?? 'Interactive markdown page'}
+>
+  {page ? (
+    <InteractivePage page={page} />
+  ) : (
+    <section class="hero-card">
+      <p class="eyebrow">Missing page</p>
+      <h1>That slug has not been published yet.</h1>
+      <p class="lede">Use the studio to preview and publish a new page source file.</p>
+      <a class="button button-primary" href="/studio">Open Studio</a>
+    </section>
+  )}
+</BaseLayout>

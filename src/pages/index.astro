@@ -1,0 +1,36 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { ensureCompiledSite } from '../compiler/compile';
+
+const pages = await ensureCompiledSite();
+---
+
+<BaseLayout title="llastro">
+  <section class="hero-card">
+    <p class="eyebrow">Interactive Markdown App Spec v0.1</p>
+    <h1>Publish one-page Astro apps from a token-efficient markdown contract.</h1>
+    <p class="lede">
+      This greenfield MVP pairs Astro with a custom compiler, a tiny client runtime, and a paste-to-publish
+      studio for trusted self-hosted content.
+    </p>
+    <div class="hero-actions">
+      <a class="button button-primary" href="/studio">Open Studio</a>
+      <a class="button button-ghost" href="/p/sauce-generator">View Sample</a>
+    </div>
+  </section>
+
+  <section class="library-grid">
+    {pages.map((page) => (
+      <a href={`/p/${page.slug}`} class:list={['library-card', `theme-${page.theme}`]}>
+        <p class="eyebrow">{page.layout}</p>
+        <h2>{page.title}</h2>
+        <p>{page.description ?? 'No description provided.'}</p>
+        <div class="tag-row">
+          {page.tags.map((tag) => (
+            <span>{tag}</span>
+          ))}
+        </div>
+      </a>
+    ))}
+  </section>
+</BaseLayout>

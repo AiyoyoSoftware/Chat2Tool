@@ -1,0 +1,40 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'Interactive Markdown App Spec v0.1 studio' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="site-header">
+        <a href="/" class="brand">
+          <span class="brand-mark">LL</span>
+          <span>
+            <strong>llastro</strong>
+            <small>self-hosted interactive markdown apps</small>
+          </span>
+        </a>
+        <nav class="site-nav">
+          <a href="/">Library</a>
+          <a href="/studio">Studio</a>
+        </nav>
+      </header>
+      <main class="site-main">
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>

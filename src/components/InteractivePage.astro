@@ -1,0 +1,34 @@
+---
+import type { CompiledPage } from '../lib/types';
+
+interface Props {
+  page: CompiledPage;
+  mountId?: string;
+}
+
+const { page, mountId = `imd-${page.frontmatter.slug}` } = Astro.props;
+const runtimeId = `${mountId}-runtime`;
+---
+
+<section
+  id={mountId}
+  class:list={[
+    'page-frame',
+    `theme-${page.frontmatter.theme}`,
+    `layout-${page.frontmatter.layout}`,
+  ]}
+  data-interactive-page
+  data-runtime-id={runtimeId}
+>
+  <div class="page-hero">
+    <p class="eyebrow">{page.frontmatter.layout}</p>
+    <h1>{page.frontmatter.title}</h1>
+    {page.frontmatter.description && <p class="page-description">{page.frontmatter.description}</p>}
+  </div>
+  <article class="page-body prose" set:html={page.html} />
+</section>
+
+<template id={runtimeId} data-app-runtime>{JSON.stringify(page.runtime)}</template>
+<script>
+  import '../runtime/page-boot';
+</script>

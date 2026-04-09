@@ -1,0 +1,287 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { readSourceFile } from '../lib/storage';
+import { sourcePathForSlug } from '../lib/config';
+
+const llmInstructions = `Generate 1 page as a single .md file for Interactive Markdown App Spec v0.1.
+
+Output rules:
+- Output Markdown only
+- Start with YAML front matter delimited by ---
+- No explanations, no code fences around the whole file
+- No raw HTML, no CSS, no JS unless explicitly requested as \`\`\`appjs
+
+Front matter:
+- Required: title, slug, theme, layout
+- Optional: description, state, data, computed, meta
+- theme in: default, recipe, guide
+- layout in: article, tool, dashboard
+- meta keys: tags, published, accent
+
+Runtime API:
+- state: mutable client state
+- data: inline JSON, /data/file.json, or https://... JSON
+- computed: derived expressions from state/data
+
+Syntax:
+- Interpolation: {{ expression }}
+- If block:
+  @#if expression
+  ...
+  @#endif
+- For block:
+  @#for item in expression
+  ...
+  @#endfor
+
+Built-ins:
+- @#select bind="stateKey" options="a,b" label="..."
+- @#callout type="info|warning|success" title="..."
+  ...
+  @#endcallout
+- @#accordion title="..."
+  ...
+  @#endaccordion
+- @#json-list source="expression" field="optionalField"
+
+Expressions:
+- values: strings, numbers, booleans, null, arrays, objects, identifiers
+- ops: ., [], ==, !=, and, or, not, +
+- pipes: where(field,value), length, join(sep), first, default(value)
+- examples: {{ base }}, {{ matching | length }}, sauces | where("base", base)
+
+Authoring rules:
+- Keep everything one-page and paste-ready
+- Prefer local or inline data unless remote fetch is clearly useful
+- Use declared state keys only in bind=
+- Use only approved themes, layouts, keys, directives, and expression features
+- Make the UI coherent and polished within the chosen theme/layout
+- If interactive, include sensible default state
+
+Minimal shape:
+---
+title: Example
+slug: example
+theme: default
+layout: tool
+description: Short summary
+state:
+  choice: a
+data:
+  items:
+    - name: Alpha
+      type: a
+computed:
+  filtered: items | where("type", choice)
+meta:
+  tags: [demo]
+  published: true
+---
+
+# Example
+
+@#select bind="choice" options="a,b" label="Choose"
+
+@#if filtered
+@#for item in filtered
+- {{ item.name }}
+@#endfor
+@#endif`;
+
+let initialSource = `---
+title: Sauce Generator
+slug: sauce-generator
+theme: recipe
+layout: tool
+description: Generate low-calorie sauce ideas
+state:
+  base: yogurt
+data:
+  sauces: /data/sauces.json
+computed:
+  matching: sauces | where("base", base)
+meta:
+  tags: [recipes, sauces, tool]
+  published: true
+---
+
+# Sauce Generator
+
+@#select bind="base" options="yogurt,soy" label="Choose a base"
+
+## Matching sauces
+
+@#for item in matching
+- {{ item.name }}
+@#endfor
+`;
+
+try {
+  initialSource = await readSourceFile(sourcePathForSlug('sauce-generator', 'tool'));
+} catch {
+  // Keep the inline fallback sample when storage is empty.
+}
+---
+
+<BaseLayout title="Studio | llastro" description="Paste, preview, and publish interactive markdown pages.">
+  <section class="studio-grid">
+    <section class="studio-card">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Authoring</p>
+          <h1>Studio</h1>
+        </div>
+        <div class="hero-actions">
+          <button class="button button-ghost" id="copy-instructions-button" type="button">Copy Instructions</button>
+          <button class="button button-primary" id="preview-button" type="button">Preview</button>
+          <button class="button button-ghost" id="publish-button" type="button">Publish</button>
+        </div>
+      </div>
+      <p class="lede">
+        Paste a full `.md` source file that follows the v0.1 contract. Preview uses the same parser and renderer
+        as publish.
+      </p>
+      <p class="studio-helper">
+        Copy the LLM authoring prompt, generate a page source file elsewhere, then paste the Markdown here.
+      </p>
+      <template id="llm-instructions-template">{llmInstructions}</template>
+      <textarea id="source-editor" class="source-editor">{initialSource}</textarea>
+      <div id="feedback" class="feedback-panel" hidden></div>
+    </section>
+
+    <section class="studio-card">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Render-before-save</p>
+          <h2>Preview</h2>
+        </div>
+      </div>
+      <div id="preview-shell" class="preview-shell">
+        <p class="empty-state">Run a preview to render the current page.</p>
+      </div>
+    </section>
+  </section>
+
+  <script>
+    import { initInteractivePage } from '../runtime/app-runtime';
+
+    type ApiIssue = { message: string };
+
+    const editor = document.querySelector<HTMLTextAreaElement>('#source-editor');
+    const previewShell = document.querySelector<HTMLDivElement>('#preview-shell');
+    const feedback = document.querySelector<HTMLDivElement>('#feedback');
+    const instructionsTemplate = document.querySelector<HTMLTemplateElement>('#llm-instructions-template');
+    const copyInstructionsButton = document.querySelector<HTMLButtonElement>('#copy-instructions-button');
+    const previewButton = document.querySelector<HTMLButtonElement>('#preview-button');
+    const publishButton = document.querySelector<HTMLButtonElement>('#publish-button');
+
+    if (!editor || !previewShell || !feedback || !instructionsTemplate || !copyInstructionsButton || !previewButton || !publishButton) {
+      throw new Error('Studio controls failed to initialize.');
+    }
+
+    const llmInstructions = instructionsTemplate.innerHTML.trim();
+
+    const formatIssues = (issues: ApiIssue[] = []) => issues.map((issue) => `<li>${issue.message}</li>`).join('');
+    const formatError = (error: unknown) => (error instanceof Error ? error.message : 'Unknown error');
+
+    const setFeedback = (message: string, tone = 'info') => {
+      feedback.hidden = false;
+      feedback.className = `feedback-panel tone-${tone}`;
+      feedback.innerHTML = message;
+    };
+
+    const clearFeedback = () => {
+      feedback.hidden = true;
+      feedback.innerHTML = '';
+      feedback.className = 'feedback-panel';
+    };
+
+    const copyInstructions = async () => {
+      try {
+        await navigator.clipboard.writeText(llmInstructions);
+        copyInstructionsButton.textContent = 'Copied';
+        setFeedback(
+          '<strong>Instructions copied.</strong><div>Use that prompt with your LLM, then paste the generated Markdown into the editor.</div>',
+          'success',
+        );
+        window.setTimeout(() => {
+          copyInstructionsButton.textContent = 'Copy Instructions';
+        }, 1600);
+      } catch (error) {
+        setFeedback(`<strong>Copy failed.</strong><div>${formatError(error)}</div>`, 'error');
+      }
+    };
+
+    const renderPreview = async () => {
+      clearFeedback();
+      previewButton.disabled = true;
+
+      try {
+        const response = await fetch('/api/preview', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ source: editor.value }),
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+          setFeedback(`<strong>Preview failed.</strong><ul>${formatIssues(payload.issues)}</ul>`, 'error');
+          previewShell.innerHTML = '<p class="empty-state">Fix the errors above and try again.</p>';
+          return;
+        }
+
+        previewShell.className = `preview-shell theme-${payload.page.frontmatter.theme} layout-${payload.page.frontmatter.layout}`;
+        previewShell.innerHTML = `
+          <section class="page-frame theme-${payload.page.frontmatter.theme} layout-${payload.page.frontmatter.layout}">
+            <div class="page-hero">
+              <p class="eyebrow">${payload.page.frontmatter.layout}</p>
+              <h1>${payload.page.frontmatter.title}</h1>
+              ${payload.page.frontmatter.description ? `<p class="page-description">${payload.page.frontmatter.description}</p>` : ''}
+            </div>
+            <article class="page-body prose">${payload.page.html}</article>
+          </section>
+        `;
+        await initInteractivePage(previewShell, payload.page.runtime);
+      } catch (error) {
+        setFeedback(`<strong>Preview failed.</strong><div>${formatError(error)}</div>`, 'error');
+      } finally {
+        previewButton.disabled = false;
+      }
+    };
+
+    const publishPage = async () => {
+      clearFeedback();
+      publishButton.disabled = true;
+
+      try {
+        const response = await fetch('/api/publish', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ source: editor.value }),
+        });
+
+        const payload = await response.json();
+        if (!response.ok) {
+          setFeedback(`<strong>Publish failed.</strong><ul>${formatIssues(payload.issues)}</ul>`, 'error');
+          return;
+        }
+
+        setFeedback(
+          `<strong>Published.</strong><div>Saved to <code>${payload.path}</code></div><div><a href="/p/${payload.slug}">Open page</a></div>`,
+          'success',
+        );
+        await renderPreview();
+      } catch (error) {
+        setFeedback(`<strong>Publish failed.</strong><div>${formatError(error)}</div>`, 'error');
+      } finally {
+        publishButton.disabled = false;
+      }
+    };
+
+    copyInstructionsButton.addEventListener('click', copyInstructions);
+    previewButton.addEventListener('click', renderPreview);
+    publishButton.addEventListener('click', publishPage);
+    renderPreview();
+  </script>
+</BaseLayout>
