@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>llastro | Alpine App Studio</title>
+    <meta
+      name="description"
+      content="Prompt, copy, paste, preview, and export theme-constrained Alpine.js single-page apps."
+    >
+    <link rel="stylesheet" href="./styles.css">
+    <script defer src="./app.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.8/dist/cdn.min.js"></script>
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <div class="shell" x-data="studioApp" x-init="boot()" @keydown.escape.window="closeLibraryModal()">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Greenfield Alpine Runtime</p>
+          <h1>Prompt, paste, and ship mini apps with a consistent theme system.</h1>
+          <p class="lede">
+            The studio gives users a single prompt to paste into ChatGPT, a semantic UI contract for
+            Alpine.js apps, and a safe place to import, preview, and export the result as a standalone SPA.
+          </p>
+        </div>
+
+        <div class="hero-panel">
+          <p class="mini-label">Flow</p>
+          <ol class="flow-list">
+            <li>Write a quick app brief.</li>
+            <li>Copy the generated prompt into ChatGPT.</li>
+            <li>Paste the returned code block here, publish it, and reopen it anytime.</li>
+          </ol>
+          <div class="hero-actions">
+            <button type="button" class="button button-primary" @click="copyPrompt()">Copy Prompt</button>
+            <button type="button" class="button button-secondary" @click="loadExample()">Load Example</button>
+          </div>
+        </div>
+      </header>
+
+      <nav class="mode-switch" aria-label="Workspace mode">
+        <button
+          type="button"
+          class="mode-switch__button"
+          :class="{ 'is-active': currentView === 'studio' }"
+          @click="goToStudio()"
+        >
+          Studio
+        </button>
+        <button
+          type="button"
+          class="mode-switch__button"
+          :class="{ 'is-active': currentView === 'library' }"
+          @click="goToLibrary()"
+        >
+          Library
+          <span class="mode-switch__count" x-text="publishedApps.length"></span>
+        </button>
+      </nav>
+
+      <main class="workspace" x-show="currentView === 'studio'" x-cloak>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">1. Prompt Lab</p>
+              <h2>Theme-guided authoring</h2>
+            </div>
+            <span class="status-pill" x-text="`${currentTheme.name} · ${currentScheme.name}`"></span>
+          </div>
+
+          <label class="field">
+            <span>App brief</span>
+            <textarea
+              x-model="appBrief"
+              rows="7"
+              placeholder="Example: Build a fundraising tracker with milestones, donor notes, and a modal to add pledges."
+            ></textarea>
+          </label>
+
+          <div class="theme-grid">
+            <template x-for="theme in themes" :key="theme.id">
+              <button
+                type="button"
+                class="theme-card"
+                :class="{ 'is-active': selectedTheme === theme.id }"
+                :style="`--theme-gradient:${theme.gradient}; --theme-accent:${theme.accent};`"
+                @click="selectTheme(theme.id)"
+              >
+                <span class="theme-card__eyebrow" x-text="theme.label"></span>
+                <strong x-text="theme.name"></strong>
+                <span x-text="theme.summary"></span>
+                <small x-text="theme.semanticHint"></small>
+              </button>
+            </template>
+          </div>
+
+          <div class="scheme-grid">
+            <template x-for="scheme in currentSchemes" :key="`${currentTheme.id}-${scheme.id}`">
+              <button
+                type="button"
+                class="scheme-card"
+                :class="{ 'is-active': selectedScheme === scheme.id }"
+                :style="`--scheme-gradient:${scheme.gradient}; --scheme-accent:${currentTheme.accent};`"
+                @click="selectScheme(scheme.id)"
+              >
+                <div class="scheme-card__swatch"></div>
+                <strong x-text="scheme.name"></strong>
+                <span x-text="scheme.summary"></span>
+              </button>
+            </template>
+          </div>
+
+          <div class="reference-strip">
+            <div>
+              <p class="mini-label">Allowed helper classes</p>
+              <p class="token-row">
+                <template x-for="token in helperClasses" :key="token">
+                  <code x-text="token"></code>
+                </template>
+              </p>
+            </div>
+            <div>
+              <p class="mini-label">Required root contract</p>
+              <code>&lt;main data-llastro-app data-llastro-theme="theme-id" data-llastro-scheme="scheme-id"&gt;</code>
+            </div>
+          </div>
+
+          <label class="field">
+            <span>Paste this prompt into ChatGPT</span>
+            <textarea x-bind:value="promptText" rows="18" readonly></textarea>
+          </label>
+
+          <div class="button-row">
+            <button type="button" class="button button-primary" @click="copyPrompt()">Copy Prompt</button>
+            <button type="button" class="button button-secondary" @click="resetPrompt()">Reset Brief</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">2. Paste Response</p>
+              <h2>Import the code block</h2>
+            </div>
+            <span class="status-pill" x-text="detectedThemeLabel"></span>
+          </div>
+
+          <label class="field">
+            <span>ChatGPT response or raw HTML fragment</span>
+            <textarea
+              x-model="rawResponse"
+              rows="18"
+              placeholder="Paste the single ```html block here."
+            ></textarea>
+          </label>
+
+          <div class="button-row">
+            <button type="button" class="button button-primary" @click="importResponse()">Import To Preview</button>
+            <button type="button" class="button button-secondary" @click="loadExample()">Load Example</button>
+            <button type="button" class="button button-ghost" @click="clearResponse()">Clear</button>
+          </div>
+
+          <div class="issues" x-show="issues.length">
+            <p class="mini-label">Import notes</p>
+            <template x-for="issue in issues" :key="issue.text">
+              <div class="issue" :class="`issue-${issue.level}`">
+                <strong x-text="issue.level"></strong>
+                <span x-text="issue.text"></span>
+              </div>
+            </template>
+          </div>
+
+          <div class="contract-grid">
+            <div>
+              <p class="mini-label">Authoring contract</p>
+              <ul class="checklist">
+                <template x-for="item in contractChecklist" :key="item">
+                  <li x-text="item"></li>
+                </template>
+              </ul>
+            </div>
+            <div>
+              <p class="mini-label">Detected runtime root</p>
+              <pre class="code-chip" x-text="importedRootSummary"></pre>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel panel-preview">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">3. Preview</p>
+              <h2>Sandboxed runtime</h2>
+            </div>
+            <span class="status-pill" x-text="publishStateLabel"></span>
+          </div>
+
+          <div class="preview-toolbar">
+            <p class="preview-copy">
+              Preview runs inside a sandboxed iframe with Alpine preloaded. Exported files keep the same theme
+              framework and work as standalone HTML.
+            </p>
+            <div class="button-row">
+              <button type="button" class="button button-primary" @click="publishCurrentApp()" x-text="publishButtonLabel"></button>
+              <button type="button" class="button button-primary" @click="downloadExport()">Download HTML</button>
+              <button type="button" class="button button-secondary" @click="copyStandalone()">Copy HTML</button>
+            </div>
+          </div>
+
+          <iframe
+            x-ref="previewFrame"
+            class="preview-frame"
+            title="Generated Alpine app preview"
+            sandbox="allow-scripts allow-forms allow-modals"
+          ></iframe>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">4. Theme Reference</p>
+              <h2>Semantic patterns for the LLM</h2>
+            </div>
+            <span class="status-pill">LLM-friendly CSS</span>
+          </div>
+
+          <div class="theme-reference">
+            <template x-for="theme in themes" :key="`${theme.id}-reference`">
+              <article class="reference-card">
+                <div class="reference-swatch" :style="`background:${theme.gradient}`"></div>
+                <h3 x-text="theme.name"></h3>
+                <p x-text="theme.summary"></p>
+                <p class="reference-note" x-text="theme.semanticHint"></p>
+                <ul class="reference-list">
+                  <template x-for="cue in theme.semanticCues" :key="cue">
+                    <li x-text="cue"></li>
+                  </template>
+                </ul>
+              </article>
+            </template>
+          </div>
+        </section>
+      </main>
+
+      <main class="workspace library-workspace" x-show="currentView === 'library'" x-cloak>
+        <section class="panel panel-library">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Library</p>
+              <h2>Published apps</h2>
+            </div>
+            <span class="status-pill" x-text="publishedApps.length ? `${publishedApps.length} saved` : 'No saved apps'"></span>
+          </div>
+
+          <div class="library-layout" x-show="publishedApps.length" x-cloak>
+            <aside class="library-list">
+              <template x-for="app in publishedApps" :key="app.id">
+                <article class="library-card" :class="{ 'is-active': activeLibraryId === app.id }">
+                  <div class="library-card__swatch" :style="`background:${resolveScheme(app.themeId, app.schemeId).gradient}`"></div>
+                  <div class="cluster library-card__meta">
+                    <span class="status-pill" x-text="`${resolveTheme(app.themeId).name} · ${resolveScheme(app.themeId, app.schemeId).name}`"></span>
+                    <span class="library-timestamp" x-text="formatTimestamp(app.updatedAt)"></span>
+                  </div>
+                  <h3 x-text="app.title"></h3>
+                  <p x-text="app.summary"></p>
+                  <div class="button-row">
+                    <button type="button" class="button button-primary" @click="openLibraryApp(app.id)">Open</button>
+                    <button type="button" class="button button-secondary" @click="editLibraryApp(app.id)">Edit</button>
+                  </div>
+                </article>
+              </template>
+            </aside>
+
+            <section class="library-viewer">
+              <div class="stack" x-show="activeLibraryApp" x-cloak>
+                <div class="library-viewer__head">
+                  <div>
+                    <p class="mini-label">Selected app</p>
+                    <h3 x-text="activeLibraryApp?.title"></h3>
+                    <p class="muted-copy" x-text="activeLibraryApp?.summary"></p>
+                  </div>
+                  <div class="button-row">
+                    <button type="button" class="button button-primary" @click="openLibraryApp(activeLibraryApp.id)">Open Fullscreen</button>
+                    <button type="button" class="button button-primary" @click="editLibraryApp(activeLibraryApp.id)">Edit In Studio</button>
+                    <button type="button" class="button button-secondary" @click="downloadLibraryApp(activeLibraryApp.id)">Download</button>
+                    <button type="button" class="button button-ghost" @click="deleteLibraryApp(activeLibraryApp.id)">Delete</button>
+                  </div>
+                </div>
+
+                <iframe
+                  x-ref="libraryFrame"
+                  class="preview-frame"
+                  title="Published app preview"
+                  sandbox="allow-scripts allow-forms allow-modals"
+                ></iframe>
+              </div>
+
+              <div class="library-empty" x-show="!activeLibraryApp" x-cloak>
+                <h3>Pick an app to open it.</h3>
+                <p class="muted-copy">Saved apps render here with the same standalone shell used for export.</p>
+              </div>
+            </section>
+          </div>
+
+          <div class="library-empty" x-show="!publishedApps.length" x-cloak>
+            <h3>Your library is empty.</h3>
+            <p class="muted-copy">Import a response in the studio and press publish. It will show up here for revisiting and editing.</p>
+            <div class="button-row">
+              <button type="button" class="button button-primary" @click="goToStudio()">Back To Studio</button>
+              <button type="button" class="button button-secondary" @click="loadExample()">Load Example Draft</button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <p>
+          Runtime status:
+          <strong x-text="statusMessage"></strong>
+        </p>
+      </footer>
+
+      <div class="library-modal" x-show="isLibraryModalOpen" x-cloak>
+        <div class="library-modal__backdrop" @click="closeLibraryModal()"></div>
+        <section class="library-modal__panel">
+          <header class="library-modal__header">
+            <div>
+              <p class="mini-label">Library app</p>
+              <h2 x-text="activeLibraryApp?.title || 'Published app'"></h2>
+              <p class="muted-copy" x-text="activeLibraryApp?.summary || 'Standalone viewer'"></p>
+            </div>
+            <button type="button" class="library-modal__close" @click="closeLibraryModal()" aria-label="Close fullscreen viewer">
+              ×
+            </button>
+          </header>
+
+          <iframe
+            x-ref="libraryModalFrame"
+            class="library-modal__frame"
+            title="Fullscreen published app preview"
+            sandbox="allow-scripts allow-forms allow-modals"
+          ></iframe>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,26 +1,11 @@
 {
   "name": "llastro",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "type": "module",
+  "description": "Prompt-copy-paste studio for theme-constrained Alpine.js mini apps.",
   "scripts": {
-    "dev": "astro dev",
-    "build": "npm run compile && astro build",
-    "preview": "astro preview",
-    "compile": "tsx scripts/compile.ts",
-    "check": "astro check"
-  },
-  "dependencies": {
-    "@astrojs/node": "^9.4.2",
-    "astro": "^5.13.2",
-    "marked": "^15.0.12",
-    "yaml": "^2.8.1",
-    "zod": "^3.25.67"
-  },
-  "devDependencies": {
-    "@astrojs/check": "^0.9.8",
-    "@types/node": "^24.5.2",
-    "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
+    "dev": "python3 -m http.server 4321",
+    "serve": "python3 -m http.server 4321",
+    "check": "node --check app.js"
   }
 }

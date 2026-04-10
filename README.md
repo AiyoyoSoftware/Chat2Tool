@@ -1,28 +1,87 @@
 # llastro
 
-An Astro-based, Docker-friendly MVP for Interactive Markdown App Spec v0.1.
+`llastro` is a greenfield static studio for theme-constrained Alpine.js single-page apps.
 
-## What it includes
+It is built around one workflow:
 
-- Astro server mode with the Node adapter
-- A custom parser/compiler for `@#` directives and `{{ }}` interpolation
-- A lightweight client runtime for state, computed values, loops, and remote JSON
-- A paste-to-preview/publish studio
-- Disk-backed storage for content, data, and compiled page cache
+1. Write a brief.
+2. Copy the generated prompt into ChatGPT.
+3. Paste the returned `html` code block into the studio.
+4. Preview it in a sandboxed iframe.
+5. Publish it into the local library.
+6. Reopen, edit, and export it from the same host.
 
-## Run locally
+## What the runtime enforces
+
+- Alpine.js is the interaction layer.
+- The generated app must use one root element with `data-llastro-app`.
+- The root must declare exactly one theme with `data-llastro-theme`.
+- The root must also declare one valid color scheme with `data-llastro-scheme`.
+- Custom CSS and external scripts are stripped at import time so the shared theme framework stays consistent.
+- Semantic HTML plus a small helper-class set gives LLM output a consistent visual language.
+
+## Theme system
+
+Themes are meant to change more than color. Each one shifts typography, radii, shadow style, surface treatment, and component feel so generated apps can land in meaningfully different visual languages.
+
+Each theme also includes multiple built-in color schemes, so users can stay inside one visual era while swapping palette and mood.
+
+- `flat`: 2013-2017 Flat Design / Material with clean 2D blocks, solid color, and typography-first hierarchy.
+- `material2`: 2018-2019 Flat 2.0 / Material 2.0 with subtle elevation, soft gradients, and restrained depth.
+- `neumorph`: 2019-2020 Soft UI with clay-like depth and extruded surfaces.
+- `glass`: 2020-2022 Glassmorphism with frosted panels, vivid backdrops, and subtle highlights.
+- `brutal`: 2023-2024 Brutalism / Flat 2.0 with bold type, vivid color, and minimal decoration.
+- `liquid`: 2025-2026 Liquid Glass & Motion UI with refined glow, rich gradients, and premium glass chrome.
+
+Helper classes available to the LLM:
+
+`app-shell`, `hero`, `spotlight`, `panel`, `card-grid`, `card`, `stack`, `cluster`, `split`, `toolbar`, `actions`, `pill`, `metric`, `frame`, `empty-state`, `muted`, `divider`
+
+## Local development
+
+No build step is required.
 
 ```bash
-npm install
 npm run dev
 ```
 
-Open `http://localhost:4321`.
+Then open `http://localhost:4321`.
 
-## Run with Docker
+If you do not want to use `npm`, this also works:
+
+```bash
+python3 -m http.server 4321
+```
+
+## Docker
 
 ```bash
 docker compose up --build
 ```
 
-Content is persisted in `./storage`.
+Then open `http://localhost:4321`.
+
+## Generated app contract
+
+The prompt asks ChatGPT to return exactly one fenced `html` block. The preferred root looks like this:
+
+```html
+<main data-llastro-app data-llastro-theme="liquid" data-llastro-scheme="ultraviolet" class="app-shell stack">
+  <!-- semantic Alpine app -->
+</main>
+```
+
+The host injects:
+
+- `framework.css` inline into the preview/export document
+- Alpine.js from the CDN
+- the pasted HTML fragment inside a standalone document shell
+- local library persistence in `localStorage` for published apps
+
+## Files
+
+- `index.html`: studio UI
+- `styles.css`: host-shell styling
+- `framework.css`: semantic theme framework for generated apps
+- `app.js`: Alpine studio logic
+- `Dockerfile` and `docker-compose.yml`: self-hosting path

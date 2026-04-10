@@ -3,9 +3,4 @@ services:
     build:
       context: .
     ports:
-      - "4321:4321"
-    environment:
-      STORAGE_ROOT: /app/storage
-      ENABLE_APPJS: "false"
-    volumes:
-      - ./storage:/app/storage:Z
+      - "4321:80"
