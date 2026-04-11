@@ -3,6 +3,7 @@ dist/
 .astro/
 
 storage/cache/
+data/*.json
 
 .env
 .env.local

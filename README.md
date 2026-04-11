@@ -1,6 +1,6 @@
 # llastro
 
-`llastro` is a greenfield static studio for theme-constrained Alpine.js single-page apps.
+`llastro` is a greenfield static studio for theme-constrained Alpine.js micro-apps.
 
 It is built around one workflow:
 
@@ -39,19 +39,13 @@ Helper classes available to the LLM:
 
 ## Local development
 
-No build step is required.
+No build step is required, but the app now needs the bundled Node server so the published library can be persisted on disk.
 
 ```bash
 npm run dev
 ```
 
-Then open `http://localhost:4321`.
-
-If you do not want to use `npm`, this also works:
-
-```bash
-python3 -m http.server 4321
-```
+Then open `http://localhost:9944`.
 
 ## Docker
 
@@ -59,11 +53,13 @@ python3 -m http.server 4321
 docker compose up --build
 ```
 
-Then open `http://localhost:4321`.
+Then open `http://localhost:9944`.
+
+Published apps are stored in `/data/library.json` inside the container and persisted through the named Docker volume `llastro-data`.
 
 ## Generated app contract
 
-The prompt asks ChatGPT to return exactly one fenced `html` block. The preferred root looks like this:
+The prompt asks the model to return exactly one fenced `html` block for a focused Alpine.js micro-app. The preferred root looks like this:
 
 ```html
 <main data-llastro-app data-llastro-theme="liquid" data-llastro-scheme="ultraviolet" class="app-shell stack">
@@ -76,7 +72,7 @@ The host injects:
 - `framework.css` inline into the preview/export document
 - Alpine.js from the CDN
 - the pasted HTML fragment inside a standalone document shell
-- local library persistence in `localStorage` for published apps
+- filesystem-backed library persistence in `data/library.json` for published apps
 
 ## Files
 
@@ -84,4 +80,5 @@ The host injects:
 - `styles.css`: host-shell styling
 - `framework.css`: semantic theme framework for generated apps
 - `app.js`: Alpine studio logic
+- `server.js`: static file host plus the filesystem-backed library API
 - `Dockerfile` and `docker-compose.yml`: self-hosting path

@@ -3,6 +3,7 @@ const THEME_MARKER = "data-llastro-theme";
 const SCHEME_MARKER = "data-llastro-scheme";
 const STORAGE_KEY = "llastro-studio-v1";
 const LIBRARY_KEY = "llastro-library-v1";
+const LIBRARY_API_PATH = "/api/library";
 const ALPINE_CDN = "https://cdn.jsdelivr.net/npm/alpinejs@3.15.8/dist/cdn.min.js";
 
 const THEMES = [
@@ -303,6 +304,11 @@ const MINIMAL_FRAMEWORK_CSS = `
   display: grid;
   gap: 1rem;
 }
+[data-llastro-app] .cluster > * + *,
+[data-llastro-app] .toolbar > * + *,
+[data-llastro-app] .actions > * + * {
+  margin-block-start: 0;
+}
 [data-llastro-app] .split,
 [data-llastro-app] .card-grid {
   display: grid;
@@ -331,11 +337,18 @@ const MINIMAL_FRAMEWORK_CSS = `
   font: inherit;
 }
 [data-llastro-app] button {
+  appearance: none;
+  -webkit-appearance: none;
   border: 0;
   border-radius: 999px;
+  margin: 0;
   padding: 0.7rem 1rem;
   background: #4f7d44;
   color: #fff;
+}
+[data-llastro-app] button::-moz-focus-inner {
+  padding: 0;
+  border: 0;
 }
 [data-llastro-app] input,
 [data-llastro-app] select,
@@ -405,6 +418,12 @@ function slugify(value) {
     .slice(0, 48) || "llastro-app";
 }
 
+function sortLibraryEntries(entries) {
+  return [...entries].sort((left, right) => {
+    return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+  });
+}
+
 function extractAppMetadata(appHtml, fallbackTheme, fallbackScheme) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(`<body>${appHtml}</body>`, "text/html");
@@ -421,7 +440,7 @@ function extractAppMetadata(appHtml, fallbackTheme, fallbackScheme) {
   const summary = (
     root?.getAttribute("data-llastro-summary") ||
     root?.querySelector("p, [data-llastro-summary]")?.textContent ||
-    "Published from the llastro studio."
+    "Published from Chat2Tool."
   ).trim();
 
   return {
@@ -631,9 +650,7 @@ function createStudioApp() {
     },
 
     get publishedApps() {
-      return [...this.library].sort((left, right) => {
-        return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
-      });
+      return sortLibraryEntries(this.library);
     },
 
     get activeLibraryApp() {
@@ -678,45 +695,137 @@ function createStudioApp() {
     },
 
     get promptText() {
-      const themeLines = this.themes
+      const themeCatalogLines = this.themes
         .map((theme) => {
-          const schemes = theme.schemes.map((scheme) => `${scheme.id} (${scheme.name})`).join(", ");
-          return `- ${theme.id}: ${theme.summary} ${theme.semanticHint} Schemes: ${schemes}.`;
+          const schemeLines = theme.schemes
+            .map((scheme) => `  - ${scheme.id}: ${scheme.summary}`)
+            .join("\n");
+
+          return `- ${theme.id}: ${theme.summary} ${theme.semanticHint}\n  Schemes:\n${schemeLines}`;
         })
+        .join("\n");
+      const flatSchemeLines = themeById("flat").schemes
+        .map((scheme) => `- ${scheme.id}: ${scheme.summary}`)
         .join("\n");
       const currentSchemeLines = this.currentSchemes
         .map((scheme) => `- ${scheme.id}: ${scheme.summary}`)
         .join("\n");
 
       return [
-        "You are generating a production-ready Alpine.js single page app for the llastro host runtime.",
+        "You are generating a production-ready Alpine.js micro-app for the llastro host runtime.",
         "",
-        "Return format:",
+        "Your job is to produce a compact, self-contained, directly usable single-page utility. The result should feel like a saved executable artifact derived from a conversation: focused, practical, and worth revisiting.",
+        "",
+        "The app must be a micro-app:",
+        "- Solve one clear job well.",
+        "- Prefer one strong workflow over many shallow features.",
+        "- Keep scope tight.",
+        "- Make the main interaction obvious within a few seconds.",
+        "- Favor compact usefulness over impressive-looking complexity.",
+        "",
+        "Do not generate:",
+        "- marketing pages",
+        "- startup landing pages",
+        "- generic admin dashboards",
+        "- fake SaaS shells",
+        "- auth flows",
+        "- billing",
+        "- team management",
+        "- notification centers",
+        "- empty analytics",
+        "- placeholder-heavy UI",
+        "- decorative sections without function",
+        "",
+        "Core product rules:",
+        "- Build one polished micro-app, not a broad platform.",
+        "- Prefer 1-3 meaningful sections.",
+        "- Every section must support the core task.",
+        "- Every control must do something real.",
+        "- Use sensible starter content only when it improves usability.",
+        "- Avoid filler copy and fake data overload.",
+        "- Keep labels, headings, and actions concise and concrete.",
+        "",
+        "Interaction rules:",
+        "- Use Alpine.js for real state and behavior.",
+        "- Prefer visible cause-and-effect.",
+        "- Include a clear primary interaction loop.",
+        "- Use derived values when useful.",
+        "- Support lightweight interactions such as filtering, toggles, tabs, editable lists, calculators, generators, planners, or selectors.",
+        "- Avoid overengineering state.",
+        "- Do not simulate backend features.",
+        "- Do not pretend data is persisted unless the brief explicitly asks for localStorage and it is clearly appropriate.",
+        "",
+        "Usability rules:",
+        "- The app must be directly understandable and immediately usable.",
+        "- Important actions should be visible without hunting.",
+        "- The layout should work well on both mobile and desktop using structure alone, without custom CSS.",
+        "- Prefer a strong main panel with a few supporting surfaces over sprawling grids.",
+        "- When the brief is ambiguous, choose the simplest complete interpretation.",
+        "",
+        "Output quality bar:",
+        "- The app should feel complete, not like a mockup.",
+        "- No dead buttons.",
+        "- No \"coming soon\" elements.",
+        "- No placeholder charts unless they are actually meaningful to the task.",
+        "- No fake notifications, fake users, fake activity feeds, or vanity metrics unless explicitly requested and central to the app.",
+        "- Avoid empty cards and repetitive panel layouts.",
+        "- Avoid long explanatory text unless the task genuinely needs it.",
+        "",
+        "Implementation rules:",
         "- Return exactly one fenced ```html code block and nothing else.",
         "- Do not return markdown prose before or after the code block.",
-        "- Do not return a full HTML document unless absolutely necessary. Prefer a single fragment rooted in <main>.",
-        "",
-        "Runtime contract:",
+        "- Do not return a full HTML document unless absolutely necessary.",
+        "- Prefer a single fragment rooted in <main>.",
         `- The first root element must include ${APP_MARKER}, ${THEME_MARKER}=\"theme-id\", and ${SCHEME_MARKER}=\"scheme-id\".`,
-        "- Alpine.js is already loaded by the host, so you can use Alpine directives immediately.",
+        "- Keep everything inside one root app element.",
+        "- Alpine.js is already loaded by the host, so use Alpine directives directly.",
         "- You may use inline x-data for simple apps or inline <script> tags for Alpine.data registration.",
         "- Do not include <style>, <link rel=\"stylesheet\">, CSS frameworks, or external JS.",
-        "- Keep everything inside one root app element.",
+        "- Do not rely on any assets, fonts, icons, APIs, or network requests.",
+        "- Do not assume build tooling.",
+        "- Keep implementation self-contained and host-safe.",
+        "",
+        "Semantic structure:",
         "- Use semantic HTML first: header, nav, main, section, article, aside, form, fieldset, table, dialog, footer.",
         `- Use these helper classes when helpful: ${this.helperClasses.join(", ")}.`,
+        "- Prefer structure and hierarchy over ornamental wrappers.",
+        "",
+        "State design guidance:",
+        "- Model the app state clearly.",
+        "- Keep mutable state minimal.",
+        "- Compute derived output instead of duplicating state.",
+        "- Keep naming clean and readable.",
+        "- Prefer a single Alpine component unless the app genuinely benefits from a small registration script.",
+        "- Avoid tangled event logic.",
+        "",
+        "Micro-app heuristics:",
+        "- Good app types include generators, planners, calculators, builders, checklists, trackers, explorers, editors, and decision helpers.",
+        "- Prefer one main object of interaction.",
+        "- Prefer interfaces where the user changes inputs and immediately sees useful output.",
+        "- Prefer operational tools over presentation surfaces.",
         "",
         "Theme catalog:",
-        themeLines,
+        themeCatalogLines,
         "",
-        `Theme selection rule: choose exactly one theme. Prefer ${this.currentTheme.id} unless the brief clearly points somewhere else.`,
-        `Color scheme rule: for ${this.currentTheme.id}, prefer ${this.currentScheme.id}. Allowed schemes for this theme are:`,
+        "Theme selection rule:",
+        "- Choose exactly one theme.",
+        `- For this run, prefer ${this.currentTheme.id} unless the brief clearly points elsewhere.`,
+        "- If the brief is ambiguous and no stronger direction is implied, flat is the safest fallback.",
+        "",
+        "Color scheme rule:",
+        "- Use a valid scheme for the chosen theme.",
+        "- For flat, prefer metro.",
+        "- Allowed flat schemes:",
+        flatSchemeLines,
+        `- If you choose ${this.currentTheme.id}, prefer ${this.currentScheme.id}. Allowed schemes for this theme are:`,
         currentSchemeLines,
         "",
-        "Interaction guidance:",
-        "- Make the UI feel complete and thoughtfully structured.",
-        "- Use Alpine for state, derived values, filtering, toggles, tabs, simple forms, and modal behavior.",
-        "- Keep copy concise and production-like.",
-        "- Design for desktop and mobile without writing custom CSS.",
+        "Decision policy:",
+        "- Start from the core user task.",
+        "- Choose the smallest complete feature set that makes the app genuinely useful.",
+        "- Cut anything that does not improve the primary workflow.",
+        "- Favor clarity, responsiveness, and real interaction over breadth.",
+        "- When in doubt, simplify.",
         "",
         "Example root:",
         `<main ${APP_MARKER} ${THEME_MARKER}="${this.currentTheme.id}" ${SCHEME_MARKER}="${this.currentScheme.id}" class="app-shell stack">`,
@@ -794,7 +903,7 @@ function createStudioApp() {
 
     async boot() {
       await this.loadFrameworkCss();
-      this.loadLibrary();
+      await this.loadLibrary();
       this.restoreState();
       window.addEventListener("hashchange", () => this.syncRouteFromLocation());
       window.addEventListener("popstate", () => this.syncRouteFromLocation());
@@ -1227,7 +1336,89 @@ function createStudioApp() {
       this.statusMessage = `Downloaded "${app.title}".`;
     },
 
-    publishCurrentApp() {
+    normalizeLibraryPayload(payload) {
+      if (!Array.isArray(payload)) {
+        return [];
+      }
+
+      return payload
+        .filter((entry) => {
+          return entry && typeof entry.id === "string" && typeof entry.html === "string";
+        })
+        .map((entry) => ({
+          ...entry,
+          themeId: themeById(entry.themeId).id,
+          schemeId: normalizeSchemeId(entry.themeId, entry.schemeId),
+          source: typeof entry.source === "string" ? entry.source : entry.html
+        }));
+    },
+
+    readLegacyLibrary() {
+      try {
+        const raw = localStorage.getItem(LIBRARY_KEY);
+        if (!raw) {
+          return [];
+        }
+
+        return this.normalizeLibraryPayload(JSON.parse(raw));
+      } catch (error) {
+        console.error(error);
+        return [];
+      }
+    },
+
+    async saveLibrary(nextLibrary = this.library) {
+      const response = await fetch(LIBRARY_API_PATH, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ library: nextLibrary })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Library save failed with ${response.status}`);
+      }
+
+      const payload = await response.json();
+      const library = this.normalizeLibraryPayload(payload.library);
+      this.library = library;
+      return library;
+    },
+
+    async loadLibrary() {
+      const legacyLibrary = this.readLegacyLibrary();
+
+      try {
+        const response = await fetch(LIBRARY_API_PATH, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Library load failed with ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const serverLibrary = this.normalizeLibraryPayload(payload.library);
+
+        if (serverLibrary.length) {
+          this.library = serverLibrary;
+          return;
+        }
+
+        if (legacyLibrary.length) {
+          await this.saveLibrary(legacyLibrary);
+        }
+      } catch (error) {
+        console.error(error);
+        if (legacyLibrary.length) {
+          this.library = legacyLibrary;
+          this.statusMessage = "Library API unavailable. Loaded the browser backup instead.";
+          return;
+        }
+
+        this.statusMessage = "Library could not be restored.";
+      }
+    },
+
+    async publishCurrentApp() {
       if (!this.normalizedAppHtml) {
         this.statusMessage = "Import a draft before publishing.";
         return;
@@ -1254,10 +1445,19 @@ function createStudioApp() {
         updatedAt: now
       };
 
+      const nextLibrary = [...this.library];
       if (existingIndex >= 0) {
-        this.library.splice(existingIndex, 1, entry);
+        nextLibrary.splice(existingIndex, 1, entry);
       } else {
-        this.library.unshift(entry);
+        nextLibrary.unshift(entry);
+      }
+
+      try {
+        await this.saveLibrary(nextLibrary);
+      } catch (error) {
+        console.error(error);
+        this.statusMessage = "Library save failed. Check that the llastro server is running.";
+        return;
       }
 
       this.currentEditingId = entry.id;
@@ -1265,13 +1465,12 @@ function createStudioApp() {
       this.activeLibraryId = entry.id;
       this.importedAppTitle = entry.title;
       this.appName = entry.title;
-      this.saveLibrary();
       this.saveState();
       this.goToLibrary(entry.id);
       this.statusMessage = existingApp ? `Updated "${entry.title}".` : `Published "${entry.title}" to the library.`;
     },
 
-    deleteLibraryApp(appId) {
+    async deleteLibraryApp(appId) {
       const app = this.library.find((entry) => entry.id === appId);
       if (!app) {
         return;
@@ -1282,21 +1481,28 @@ function createStudioApp() {
         return;
       }
 
-      this.library = this.library.filter((entry) => entry.id !== appId);
+      const nextLibrary = this.library.filter((entry) => entry.id !== appId);
+      const nextPublishedApps = sortLibraryEntries(nextLibrary);
+      const nextActiveLibraryId = this.activeLibraryId === appId ? nextPublishedApps[0]?.id || "" : this.activeLibraryId;
+
+      try {
+        await this.saveLibrary(nextLibrary);
+      } catch (error) {
+        console.error(error);
+        this.statusMessage = "Library delete failed. Check that the llastro server is running.";
+        return;
+      }
 
       if (this.currentEditingId === appId) {
         this.currentEditingId = "";
       }
 
-      if (this.activeLibraryId === appId) {
-        this.activeLibraryId = this.publishedApps[0]?.id || "";
-      }
+      this.activeLibraryId = nextActiveLibraryId;
 
       if (!this.activeLibraryId) {
         this.closeLibraryModal();
       }
 
-      this.saveLibrary();
       this.saveState();
 
       if (this.activeLibraryId) {
@@ -1363,35 +1569,6 @@ function createStudioApp() {
       } catch (error) {
         console.error(error);
         this.statusMessage = "Saved state could not be restored.";
-      }
-    },
-
-    saveLibrary() {
-      localStorage.setItem(LIBRARY_KEY, JSON.stringify(this.library));
-    },
-
-    loadLibrary() {
-      try {
-        const raw = localStorage.getItem(LIBRARY_KEY);
-        if (!raw) {
-          return;
-        }
-
-        const payload = JSON.parse(raw);
-        if (Array.isArray(payload)) {
-          this.library = payload
-            .filter((entry) => {
-              return entry && typeof entry.id === "string" && typeof entry.html === "string";
-            })
-            .map((entry) => ({
-              ...entry,
-              themeId: themeById(entry.themeId).id,
-              schemeId: normalizeSchemeId(entry.themeId, entry.schemeId)
-            }));
-        }
-      } catch (error) {
-        console.error(error);
-        this.statusMessage = "Library could not be restored.";
       }
     }
   };

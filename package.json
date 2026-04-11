@@ -4,8 +4,8 @@
   "private": true,
   "description": "Prompt-copy-paste studio for theme-constrained Alpine.js mini apps.",
   "scripts": {
-    "dev": "python3 -m http.server 4321",
-    "serve": "python3 -m http.server 4321",
-    "check": "node --check app.js"
+    "dev": "PORT=9944 node server.js",
+    "serve": "PORT=9944 node server.js",
+    "check": "node --check app.js && node --check server.js"
   }
 }
