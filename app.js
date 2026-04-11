@@ -241,6 +241,27 @@ const HELPER_CLASSES = [
   "divider"
 ];
 
+const REFERENCE_COVERAGE = [
+  "header",
+  "nav",
+  "section",
+  "article",
+  "aside",
+  "form",
+  "fieldset",
+  "table",
+  "dialog",
+  "footer",
+  "hero",
+  "spotlight",
+  "panel",
+  "card",
+  "frame",
+  "empty-state",
+  "metric",
+  "pill"
+];
+
 const STUDIO_STEPS = [
   {
     id: "brief",
@@ -572,6 +593,148 @@ function buildExampleSnippet(themeId, schemeId) {
   ].join("\n");
 }
 
+function buildReferenceFixture(themeId, schemeId) {
+  const theme = themeById(themeId);
+  const scheme = schemeById(themeId, schemeId);
+
+  return [
+    `<main ${APP_MARKER} ${THEME_MARKER}="${theme.id}" ${SCHEME_MARKER}="${scheme.id}" class="app-shell stack" x-data="{}" data-llastro-title="${theme.name} ${scheme.name} reference">`,
+    "  <header class=\"hero stack\">",
+    "    <div class=\"cluster\">",
+    `      <span class="pill">${theme.name}</span>`,
+    `      <span class="pill">${scheme.name}</span>`,
+    "      <span class=\"pill\">Semantic run</span>",
+    "    </div>",
+    "    <div class=\"split\">",
+    "      <div class=\"stack\">",
+    `        <h1>${theme.name} in ${scheme.name}</h1>`,
+    "        <p class=\"muted\">Reference coverage for shared surfaces, semantic containers, interactive controls, tables, progress bars, and supporting utility classes.</p>",
+    "      </div>",
+    "      <aside class=\"spotlight stack\">",
+    "        <div class=\"metric\">",
+    "          <span class=\"muted\">Accent surfaces</span>",
+    "          <strong>Live</strong>",
+    "        </div>",
+    "        <div class=\"metric\">",
+    "          <span class=\"muted\">Semantic coverage</span>",
+    `          <strong>${REFERENCE_COVERAGE.length}</strong>`,
+    "        </div>",
+    "      </aside>",
+    "    </div>",
+    "  </header>",
+    "",
+    "  <nav class=\"panel toolbar\">",
+    "    <button type=\"button\">Primary</button>",
+    "    <button type=\"button\" class=\"secondary\">Secondary</button>",
+    "    <button type=\"button\" class=\"ghost\">Ghost</button>",
+    "    <span class=\"pill\">Navigation</span>",
+    "  </nav>",
+    "",
+    "  <section class=\"split\">",
+    "    <article class=\"card stack\">",
+    "      <h2>Surface hierarchy</h2>",
+    "      <p class=\"muted\">Core semantic blocks should inherit the active scheme across fill, border, type, and supporting chrome.</p>",
+    "      <div class=\"card-grid\">",
+    "        <article class=\"metric\">",
+    "          <span class=\"muted\">Muted text</span>",
+    "          <strong>Readable</strong>",
+    "        </article>",
+    "        <article class=\"frame stack\">",
+    "          <strong>Nested frame</strong>",
+    "          <p class=\"muted\">Nested containers use the same scheme-aware border and surface tokens.</p>",
+    "        </article>",
+    "      </div>",
+    "      <hr class=\"divider\">",
+    "      <blockquote>Accent lines, supportive text, and interior surfaces should stay consistent inside the selected scheme.</blockquote>",
+    "    </article>",
+    "    <aside class=\"frame stack\">",
+    "      <h2>State helpers</h2>",
+    "      <div class=\"empty-state stack\">",
+    "        <strong>Empty state</strong>",
+    "        <p class=\"muted\">Supportive surfaces, borders, and typography remain in family with the current palette.</p>",
+    "      </div>",
+    "      <details class=\"stack\" open>",
+    "        <summary>Expandable detail surface</summary>",
+    "        <p class=\"muted\">Details, summaries, and nested copy inherit the same theme tokens.</p>",
+    "      </details>",
+    "    </aside>",
+    "  </section>",
+    "",
+    "  <form class=\"panel stack\">",
+    "    <fieldset class=\"stack\">",
+    "      <legend>Interactive controls</legend>",
+    "      <div class=\"split\">",
+    "        <label>",
+    "          <span>Text input</span>",
+    "          <input value=\"Scheme-aware input\">",
+    "        </label>",
+    "        <label>",
+    "          <span>Select menu</span>",
+    "          <select>",
+    "            <option>Primary</option>",
+    "            <option>Secondary</option>",
+    "          </select>",
+    "        </label>",
+    "      </div>",
+    "      <label>",
+    "        <span>Textarea</span>",
+    "        <textarea rows=\"3\">Buttons, inputs, labels, and focusable controls should all adopt the chosen scheme.</textarea>",
+    "      </label>",
+    "    </fieldset>",
+    "    <fieldset class=\"split\">",
+    "      <label>",
+    "        <span>Checkbox</span>",
+    "        <span class=\"cluster\"><input type=\"checkbox\" checked> <span class=\"muted\">Accent-colored</span></span>",
+    "      </label>",
+    "      <label>",
+    "        <span>Radio</span>",
+    "        <span class=\"cluster\"><input type=\"radio\" checked> <span class=\"muted\">Accent-colored</span></span>",
+    "      </label>",
+    "      <label>",
+    "        <span>Range</span>",
+    "        <input type=\"range\" value=\"62\">",
+    "      </label>",
+    "    </fieldset>",
+    "    <div class=\"stack\">",
+    "      <span class=\"muted\">Progress</span>",
+    "      <progress value=\"72\" max=\"100\">72%</progress>",
+    "    </div>",
+    "  </form>",
+    "",
+    "  <section class=\"panel stack\">",
+    "    <h2>Tabular content</h2>",
+    "    <table>",
+    "      <thead>",
+    "        <tr><th>Element</th><th>Role</th><th>Status</th></tr>",
+    "      </thead>",
+    "      <tbody>",
+    "        <tr><td>Header</td><td>Entry context</td><td>Active</td></tr>",
+    "        <tr><td>Form</td><td>Interaction</td><td>Ready</td></tr>",
+    "        <tr><td>Footer</td><td>Closure</td><td>Visible</td></tr>",
+    "      </tbody>",
+    "      <tfoot>",
+    "        <tr><td colspan=\"3\">Scheme tokens should reach table head, rows, and footer treatments.</td></tr>",
+    "      </tfoot>",
+    "    </table>",
+    "  </section>",
+    "",
+    "  <dialog class=\"stack\" x-init=\"$nextTick(() => $el.showModal())\">",
+    "    <h2>Dialog state</h2>",
+    "    <p class=\"muted\">Backdrop, body surface, and action treatments should match the active theme and scheme.</p>",
+    "    <div class=\"actions\">",
+    "      <button type=\"button\">Confirm</button>",
+    "      <button type=\"button\" class=\"secondary\">Review</button>",
+    "    </div>",
+    "  </dialog>",
+    "",
+    "  <footer class=\"frame stack\">",
+    "    <strong>Footer coverage</strong>",
+    "    <p class=\"muted\">Footer containers now share the same scheme-aware surface tokens as the rest of the semantic layout.</p>",
+    "  </footer>",
+    "</main>"
+  ].join("\n");
+}
+
 function registerStudioApp() {
   if (!window.Alpine || window.__llastroStudioRegistered) {
     return;
@@ -616,6 +779,14 @@ function createStudioApp() {
 
     get currentScheme() {
       return schemeById(this.selectedTheme, this.selectedScheme);
+    },
+
+    get totalSchemeCount() {
+      return this.themes.reduce((total, theme) => total + theme.schemes.length, 0);
+    },
+
+    get referenceCoverageLabel() {
+      return REFERENCE_COVERAGE.join(", ");
     },
 
     get currentStudioStepIndex() {
@@ -841,6 +1012,15 @@ function createStudioApp() {
 
     resolveScheme(themeId, schemeId) {
       return schemeById(themeId, schemeId);
+    },
+
+    buildReferencePreview(themeId, schemeId) {
+      const theme = themeById(themeId);
+      const scheme = schemeById(themeId, schemeId);
+      return this.buildPreviewDocument(
+        buildReferenceFixture(theme.id, scheme.id),
+        `${theme.name} ${scheme.name} reference`
+      );
     },
 
     selectTheme(themeId) {

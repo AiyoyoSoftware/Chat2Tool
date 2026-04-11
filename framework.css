@@ -36,6 +36,19 @@
   --ll-section-outline: 1px solid var(--ll-border);
   --ll-hero-fill: linear-gradient(135deg, var(--ll-surface) 0%, color-mix(in srgb, var(--ll-surface-strong) 52%, white) 100%);
   --ll-spotlight-fill: linear-gradient(135deg, var(--ll-accent-soft) 0%, rgba(255, 255, 255, 0.92) 100%);
+  --ll-secondary-fill: var(--ll-accent-soft);
+  --ll-secondary-border: transparent;
+  --ll-table-head-fill: var(--ll-surface-strong);
+  --ll-table-foot-fill: color-mix(in srgb, var(--ll-surface-muted) 80%, transparent);
+  --ll-metric-fill: var(--ll-surface-muted);
+  --ll-progress-track: color-mix(in srgb, var(--ll-surface-muted) 84%, transparent);
+  --ll-progress-fill: linear-gradient(
+    90deg,
+    var(--ll-accent) 0%,
+    color-mix(in srgb, var(--ll-accent) 62%, var(--ll-accent-strong)) 100%
+  );
+  --ll-overlay-border: var(--ll-border);
+  --ll-dialog-backdrop: rgba(18, 31, 39, 0.35);
   box-sizing: border-box;
   display: block;
   min-height: 100vh;
@@ -77,6 +90,8 @@
   --ll-button-ink: #ffffff;
   --ll-hero-fill: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
   --ll-spotlight-fill: linear-gradient(180deg, #e8f1ff 0%, #e8f1ff 100%);
+  --ll-secondary-fill: var(--ll-surface-strong);
+  --ll-secondary-border: var(--ll-border);
   background: linear-gradient(180deg, var(--ll-page-bg) 0%, var(--ll-page-bg-deep) 100%);
 }
 
@@ -167,6 +182,9 @@
   --ll-button-ink: #2047a9;
   --ll-hero-fill: linear-gradient(135deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.1));
   --ll-spotlight-fill: linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.12));
+  --ll-secondary-fill: color-mix(in srgb, var(--ll-surface-strong) 68%, transparent);
+  --ll-secondary-border: color-mix(in srgb, white 62%, var(--ll-accent) 38%);
+  --ll-overlay-border: color-mix(in srgb, white 78%, var(--ll-accent) 22%);
   background:
     radial-gradient(circle at 15% 10%, rgba(255, 255, 255, 0.75), transparent 20rem),
     radial-gradient(circle at 85% 0%, rgba(164, 94, 255, 0.35), transparent 22rem),
@@ -233,6 +251,17 @@
   --ll-input-bg: rgba(11, 17, 33, 0.82);
   --ll-button-fill: linear-gradient(135deg, #8c6cff 0%, #4ca9ff 100%);
   --ll-button-ink: #f8fbff;
+  --ll-table-head-fill: color-mix(in srgb, var(--ll-surface-strong) 82%, black);
+  --ll-table-foot-fill: color-mix(in srgb, var(--ll-surface-muted) 78%, black);
+  --ll-metric-fill:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--ll-accent-soft) 90%, transparent),
+      color-mix(in srgb, var(--ll-page-bg-deep) 82%, black)
+    );
+  --ll-secondary-fill: color-mix(in srgb, var(--ll-accent-soft) 60%, var(--ll-surface-ghost));
+  --ll-secondary-border: var(--ll-border);
+  --ll-dialog-backdrop: color-mix(in srgb, var(--ll-page-bg-deep) 74%, transparent);
   --ll-hero-fill:
     radial-gradient(circle at top right, rgba(143, 124, 255, 0.28), transparent 18rem),
     radial-gradient(circle at top left, rgba(76, 169, 255, 0.18), transparent 18rem),
@@ -528,19 +557,19 @@
   margin-block-start: calc(var(--ll-flow-space) * 1.15);
 }
 
-[data-llastro-app] :is(.app-shell, .hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state):not(.stack) > * + * {
+[data-llastro-app] :is(.app-shell, .hero, .spotlight, header, footer, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state):not(.stack) > * + * {
   margin-block-start: var(--ll-flow-space);
 }
 
-[data-llastro-app] :is(.app-shell, .hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state):not(.stack) > :is(h1, h2, h3, h4) + * {
+[data-llastro-app] :is(.app-shell, .hero, .spotlight, header, footer, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state):not(.stack) > :is(h1, h2, h3, h4) + * {
   margin-block-start: calc(var(--ll-flow-space) * 0.72);
 }
 
-[data-llastro-app] :where(*):not(:is(.stack, .split, .card-grid, .cluster, .toolbar, .actions)) > :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) + :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
+[data-llastro-app] :where(*):not(:is(.stack, .split, .card-grid, .cluster, .toolbar, .actions)) > :is(.hero, .spotlight, header, footer, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) + :is(.hero, .spotlight, header, footer, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
   margin-block-start: calc(var(--ll-flow-space) * 0.9);
 }
 
-[data-llastro-app] .stack > :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) + :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
+[data-llastro-app] .stack > :is(.hero, .spotlight, header, footer, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) + :is(.hero, .spotlight, header, footer, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
   margin-block-start: calc(var(--ll-flow-space) * 0.42);
 }
 
@@ -548,7 +577,7 @@
   margin-block-start: calc(var(--ll-flow-space) * 1.15);
 }
 
-[data-llastro-app] :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) > :is(section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
+[data-llastro-app] :is(.hero, .spotlight, header, footer, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) > :is(header, footer, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
   background: color-mix(in srgb, var(--ll-surface) 72%, var(--ll-surface-strong) 28%);
   border-color: var(--ll-border-strong);
 }
@@ -583,6 +612,8 @@
 
 [data-llastro-app] .hero,
 [data-llastro-app] .spotlight,
+[data-llastro-app] header,
+[data-llastro-app] footer,
 [data-llastro-app] section,
 [data-llastro-app] article,
 [data-llastro-app] aside,
@@ -626,7 +657,7 @@
   gap: 0.25rem;
   padding: 1rem;
   border-radius: var(--ll-radius-md);
-  background: var(--ll-surface-muted);
+  background: var(--ll-metric-fill);
   border: 1px solid var(--ll-border);
 }
 
@@ -685,7 +716,11 @@
 }
 
 [data-llastro-app] thead {
-  background: var(--ll-surface-strong);
+  background: var(--ll-table-head-fill);
+}
+
+[data-llastro-app] tfoot {
+  background: var(--ll-table-foot-fill);
 }
 
 [data-llastro-app] button,
@@ -723,7 +758,8 @@
 [data-llastro-app] button.secondary,
 [data-llastro-app] button.ghost {
   color: var(--ll-accent-strong);
-  background: var(--ll-accent-soft);
+  background: var(--ll-secondary-fill);
+  border: 1px solid var(--ll-secondary-border);
   box-shadow: none;
 }
 
@@ -758,11 +794,31 @@
   font-weight: 700;
 }
 
+[data-llastro-app] legend {
+  padding-inline: 0.35rem;
+  color: var(--ll-accent-strong);
+  font-weight: 700;
+}
+
 [data-llastro-app] progress {
   width: 100%;
   height: 0.9rem;
   border-radius: 999px;
   overflow: hidden;
+  background: var(--ll-progress-track);
+  border: 1px solid var(--ll-border);
+}
+
+[data-llastro-app] progress::-webkit-progress-bar {
+  background: var(--ll-progress-track);
+}
+
+[data-llastro-app] progress::-webkit-progress-value {
+  background: var(--ll-progress-fill);
+}
+
+[data-llastro-app] progress::-moz-progress-bar {
+  background: var(--ll-progress-fill);
 }
 
 [data-llastro-app] details {
@@ -782,11 +838,13 @@
 }
 
 [data-llastro-app] dialog::backdrop {
-  background: rgba(18, 31, 39, 0.35);
+  background: var(--ll-dialog-backdrop);
 }
 
 [data-llastro-app][data-llastro-theme="glass"] .hero,
 [data-llastro-app][data-llastro-theme="glass"] .spotlight,
+[data-llastro-app][data-llastro-theme="glass"] header,
+[data-llastro-app][data-llastro-theme="glass"] footer,
 [data-llastro-app][data-llastro-theme="glass"] section,
 [data-llastro-app][data-llastro-theme="glass"] article,
 [data-llastro-app][data-llastro-theme="glass"] aside,
@@ -803,6 +861,8 @@
 }
 
 [data-llastro-app][data-llastro-theme="glass"] .hero,
+[data-llastro-app][data-llastro-theme="glass"] header,
+[data-llastro-app][data-llastro-theme="glass"] footer,
 [data-llastro-app][data-llastro-theme="glass"] article,
 [data-llastro-app][data-llastro-theme="glass"] section,
 [data-llastro-app][data-llastro-theme="glass"] aside {
@@ -810,6 +870,8 @@
 }
 
 [data-llastro-app][data-llastro-theme="glass"] .hero::before,
+[data-llastro-app][data-llastro-theme="glass"] header::before,
+[data-llastro-app][data-llastro-theme="glass"] footer::before,
 [data-llastro-app][data-llastro-theme="glass"] article::before,
 [data-llastro-app][data-llastro-theme="glass"] section::before {
   content: "";
@@ -817,14 +879,14 @@
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+  box-shadow: inset 0 0 0 1px var(--ll-overlay-border);
 }
 
 [data-llastro-app][data-llastro-theme="glass"] .pill,
 [data-llastro-app][data-llastro-theme="glass"] button.secondary,
 [data-llastro-app][data-llastro-theme="glass"] button.ghost {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.34);
+  background: var(--ll-secondary-fill);
+  border: 1px solid var(--ll-secondary-border);
 }
 
 [data-llastro-app][data-llastro-theme="glass"] input,
@@ -844,6 +906,8 @@
 }
 
 [data-llastro-app][data-llastro-theme="flat"] .hero,
+[data-llastro-app][data-llastro-theme="flat"] header,
+[data-llastro-app][data-llastro-theme="flat"] footer,
 [data-llastro-app][data-llastro-theme="flat"] .panel,
 [data-llastro-app][data-llastro-theme="flat"] .card,
 [data-llastro-app][data-llastro-theme="flat"] .metric,
@@ -860,7 +924,7 @@
 
 [data-llastro-app][data-llastro-theme="flat"] button.secondary,
 [data-llastro-app][data-llastro-theme="flat"] button.ghost {
-  background: var(--ll-surface-strong);
+  background: var(--ll-secondary-fill);
   color: var(--ll-accent-strong);
 }
 
@@ -901,6 +965,8 @@
 }
 
 [data-llastro-app][data-llastro-theme="brutal"] .hero,
+[data-llastro-app][data-llastro-theme="brutal"] header,
+[data-llastro-app][data-llastro-theme="brutal"] footer,
 [data-llastro-app][data-llastro-theme="brutal"] .panel,
 [data-llastro-app][data-llastro-theme="brutal"] .card,
 [data-llastro-app][data-llastro-theme="brutal"] .metric,
@@ -912,7 +978,7 @@
 
 [data-llastro-app][data-llastro-theme="brutal"] .pill {
   border-radius: 4px;
-  border: 2px solid rgba(17, 17, 17, 0.9);
+  border: 2px solid var(--ll-border-strong);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.7rem;
@@ -924,7 +990,7 @@
 [data-llastro-app][data-llastro-theme="brutal"] textarea,
 [data-llastro-app][data-llastro-theme="brutal"] table,
 [data-llastro-app][data-llastro-theme="brutal"] .metric {
-  border: 2px solid rgba(17, 17, 17, 0.9);
+  border: 2px solid var(--ll-border-strong);
 }
 
 [data-llastro-app][data-llastro-theme="brutal"] .toolbar,
@@ -940,6 +1006,8 @@
 
 [data-llastro-app][data-llastro-theme="neumorph"] .hero,
 [data-llastro-app][data-llastro-theme="neumorph"] .spotlight,
+[data-llastro-app][data-llastro-theme="neumorph"] header,
+[data-llastro-app][data-llastro-theme="neumorph"] footer,
 [data-llastro-app][data-llastro-theme="neumorph"] section,
 [data-llastro-app][data-llastro-theme="neumorph"] article,
 [data-llastro-app][data-llastro-theme="neumorph"] aside,
@@ -970,6 +1038,8 @@
 
 [data-llastro-app][data-llastro-theme="neumorph"] .hero,
 [data-llastro-app][data-llastro-theme="neumorph"] .spotlight,
+[data-llastro-app][data-llastro-theme="neumorph"] header,
+[data-llastro-app][data-llastro-theme="neumorph"] footer,
 [data-llastro-app][data-llastro-theme="neumorph"] section,
 [data-llastro-app][data-llastro-theme="neumorph"] article,
 [data-llastro-app][data-llastro-theme="neumorph"] aside,
@@ -1041,6 +1111,8 @@
 
 [data-llastro-app][data-llastro-theme="liquid"] .hero,
 [data-llastro-app][data-llastro-theme="liquid"] .spotlight,
+[data-llastro-app][data-llastro-theme="liquid"] header,
+[data-llastro-app][data-llastro-theme="liquid"] footer,
 [data-llastro-app][data-llastro-theme="liquid"] section,
 [data-llastro-app][data-llastro-theme="liquid"] article,
 [data-llastro-app][data-llastro-theme="liquid"] aside,
@@ -1057,8 +1129,7 @@
 }
 
 [data-llastro-app][data-llastro-theme="liquid"] .metric {
-  background:
-    linear-gradient(135deg, rgba(130, 114, 255, 0.16), rgba(25, 34, 66, 0.9));
+  background: var(--ll-metric-fill);
 }
 
 [data-llastro-app][data-llastro-theme="liquid"] .pill {
@@ -1068,7 +1139,7 @@
 
 [data-llastro-app][data-llastro-theme="liquid"] button.secondary,
 [data-llastro-app][data-llastro-theme="liquid"] button.ghost {
-  background: var(--ll-surface-ghost);
+  background: var(--ll-secondary-fill);
   color: var(--ll-accent-strong);
 }
 
@@ -1084,7 +1155,7 @@
 }
 
 [data-llastro-app][data-llastro-theme="liquid"] dialog::backdrop {
-  background: rgba(3, 5, 14, 0.58);
+  background: var(--ll-dialog-backdrop);
 }
 
 @media (max-width: 720px) {
@@ -1094,6 +1165,8 @@
 
   [data-llastro-app] .hero,
   [data-llastro-app] .spotlight,
+  [data-llastro-app] header,
+  [data-llastro-app] footer,
   [data-llastro-app] section,
   [data-llastro-app] article,
   [data-llastro-app] aside,

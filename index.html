@@ -238,23 +238,55 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">5. Theme Reference</p>
-              <h2>Semantic patterns for the LLM</h2>
+              <h2>Scheme runs across the full semantic fixture</h2>
             </div>
-            <span class="status-pill">LLM-friendly CSS</span>
+            <span class="status-pill" x-text="`${totalSchemeCount} scheme runs`"></span>
           </div>
 
           <div class="theme-reference">
             <template x-for="theme in themes" :key="`${theme.id}-reference`">
               <article class="reference-card">
                 <div class="reference-swatch" :style="`background:${theme.gradient}`"></div>
-                <h3 x-text="theme.name"></h3>
-                <p x-text="theme.summary"></p>
-                <p class="reference-note" x-text="theme.semanticHint"></p>
-                <ul class="reference-list">
-                  <template x-for="cue in theme.semanticCues" :key="cue">
-                    <li x-text="cue"></li>
-                  </template>
-                </ul>
+                <div class="reference-card__body">
+                  <div class="reference-card__head">
+                    <div>
+                      <h3 x-text="theme.name"></h3>
+                      <p x-text="theme.summary"></p>
+                    </div>
+                    <div class="reference-card__meta">
+                      <span class="status-pill" x-text="theme.label"></span>
+                      <span class="status-pill" x-text="`${theme.schemes.length} schemes`"></span>
+                    </div>
+                  </div>
+                  <p class="reference-note" x-text="theme.semanticHint"></p>
+                  <p class="reference-coverage"><strong>Covers:</strong> <span x-text="referenceCoverageLabel"></span></p>
+                  <ul class="reference-list">
+                    <template x-for="cue in theme.semanticCues" :key="cue">
+                      <li x-text="cue"></li>
+                    </template>
+                  </ul>
+
+                  <div class="reference-schemes">
+                    <template x-for="scheme in theme.schemes" :key="`${theme.id}-${scheme.id}-preview`">
+                      <section class="reference-scheme">
+                        <div class="reference-scheme__head">
+                          <div>
+                            <strong x-text="scheme.name"></strong>
+                            <span x-text="scheme.summary"></span>
+                          </div>
+                          <div class="reference-scheme__swatch" :style="`background:${scheme.gradient}`"></div>
+                        </div>
+                        <iframe
+                          class="reference-preview"
+                          :title="`${theme.name} ${scheme.name} semantic preview`"
+                          :srcdoc="currentStudioStep === 'reference' ? buildReferencePreview(theme.id, scheme.id) : ''"
+                          loading="lazy"
+                          sandbox="allow-scripts allow-forms allow-modals"
+                        ></iframe>
+                      </section>
+                    </template>
+                  </div>
+                </div>
               </article>
             </template>
           </div>
