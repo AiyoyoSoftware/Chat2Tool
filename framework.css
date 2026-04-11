@@ -536,6 +536,23 @@
   margin-block-start: calc(var(--ll-flow-space) * 0.72);
 }
 
+[data-llastro-app] :where(*):not(:is(.stack, .split, .card-grid, .cluster, .toolbar, .actions)) > :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) + :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
+  margin-block-start: calc(var(--ll-flow-space) * 0.9);
+}
+
+[data-llastro-app] .stack > :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) + :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
+  margin-block-start: calc(var(--ll-flow-space) * 0.42);
+}
+
+[data-llastro-app] fieldset + fieldset {
+  margin-block-start: calc(var(--ll-flow-space) * 1.15);
+}
+
+[data-llastro-app] :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) > :is(section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
+  background: color-mix(in srgb, var(--ll-surface) 72%, var(--ll-surface-strong) 28%);
+  border-color: var(--ll-border-strong);
+}
+
 [data-llastro-app] .stack {
   display: grid;
   gap: var(--ll-gap);
@@ -578,6 +595,10 @@
   border-radius: var(--ll-radius-lg);
   background: var(--ll-surface);
   box-shadow: var(--ll-shadow);
+}
+
+[data-llastro-app] section {
+  margin-block: max(calc(var(--ll-flow-space) * 0.8), 0.85rem);
 }
 
 [data-llastro-app] .hero {

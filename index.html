@@ -16,7 +16,7 @@
     <div class="ambient ambient-one"></div>
     <div class="ambient ambient-two"></div>
 
-    <div class="shell" x-data="studioApp" x-init="boot()" @keydown.escape.window="closeLibraryModal()">
+    <div class="shell" x-data="studioApp()" x-init="boot()" @keydown.escape.window="closeLibraryModal()">
       <header class="topbar">
         <div>
           <p class="eyebrow">Greenfield Alpine Runtime</p>
@@ -25,19 +25,6 @@
             The studio gives users a single prompt to paste into ChatGPT, a semantic UI contract for
             Alpine.js apps, and a safe place to import, preview, and export the result as a standalone SPA.
           </p>
-        </div>
-
-        <div class="hero-panel">
-          <p class="mini-label">Flow</p>
-          <ol class="flow-list">
-            <li>Write a quick app brief.</li>
-            <li>Copy the generated prompt into ChatGPT.</li>
-            <li>Paste the returned code block here, publish it, and reopen it anytime.</li>
-          </ol>
-          <div class="hero-actions">
-            <button type="button" class="button button-primary" @click="copyPrompt()">Copy Prompt</button>
-            <button type="button" class="button button-secondary" @click="loadExample()">Load Example</button>
-          </div>
         </div>
       </header>
 
@@ -61,14 +48,58 @@
         </button>
       </nav>
 
-      <main class="workspace" x-show="currentView === 'studio'" x-cloak>
-        <section class="panel">
+      <main class="workspace studio-workspace" x-show="currentView === 'studio'" x-cloak>
+        <section class="panel wizard-progress">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">1. Prompt Lab</p>
-              <h2>Theme-guided authoring</h2>
+              <p class="eyebrow">Studio Wizard</p>
+              <h2>Move through the studio one step at a time</h2>
             </div>
-            <span class="status-pill" x-text="`${currentTheme.name} · ${currentScheme.name}`"></span>
+            <span class="status-pill" x-text="`Step ${currentStudioStepIndex + 1} of ${studioSteps.length}`"></span>
+          </div>
+
+          <ol class="wizard-steps">
+            <template x-for="(step, index) in studioSteps" :key="step.id">
+              <li>
+                <button
+                  type="button"
+                  class="wizard-step"
+                  :class="{ 'is-active': currentStudioStep === step.id, 'is-complete': index < currentStudioStepIndex }"
+                  :aria-current="currentStudioStep === step.id ? 'step' : null"
+                  @click="goToStudioStep(step.id)"
+                >
+                  <span class="wizard-step__count" x-text="index + 1"></span>
+                  <span class="wizard-step__body">
+                    <strong x-text="step.label"></strong>
+                    <span x-text="step.summary"></span>
+                  </span>
+                </button>
+              </li>
+            </template>
+          </ol>
+        </section>
+
+        <section class="panel" x-show="currentStudioStep === 'brief'" x-cloak>
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">1. App Brief</p>
+              <h2>Define what the app should accomplish</h2>
+            </div>
+            <span class="status-pill" x-text="draftTitle"></span>
+          </div>
+
+          <label class="field">
+            <span>App name</span>
+            <input
+              x-model="appName"
+              @input="handleAppNameInput()"
+              placeholder="Example: Retreat Planner"
+            >
+          </label>
+
+          <div class="field">
+            <p class="mini-label">Save behavior</p>
+            <p class="muted-copy" x-text="isSaveAsNew ? 'Renaming this edited draft will publish it as a new library app.' : 'Publishing will use this app name in the library.'"></p>
           </div>
 
           <label class="field">
@@ -79,6 +110,20 @@
               placeholder="Example: Build a fundraising tracker with milestones, donor notes, and a modal to add pledges."
             ></textarea>
           </label>
+
+          <div class="button-row">
+            <button type="button" class="button button-secondary" @click="resetPrompt()">Reset Brief</button>
+          </div>
+        </section>
+
+        <section class="panel" x-show="currentStudioStep === 'theme'" x-cloak>
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">2. Theme + Color Scheme</p>
+              <h2>Choose the visual direction</h2>
+            </div>
+            <span class="status-pill" x-text="`${currentTheme.name} · ${currentScheme.name}`"></span>
+          </div>
 
           <div class="theme-grid">
             <template x-for="theme in themes" :key="theme.id">
@@ -113,19 +158,15 @@
             </template>
           </div>
 
-          <div class="reference-strip">
+        </section>
+
+        <section class="panel" x-show="currentStudioStep === 'handoff'" x-cloak>
+          <div class="panel-head">
             <div>
-              <p class="mini-label">Allowed helper classes</p>
-              <p class="token-row">
-                <template x-for="token in helperClasses" :key="token">
-                  <code x-text="token"></code>
-                </template>
-              </p>
+              <p class="eyebrow">3. Copy Prompt + Paste Response</p>
+              <h2>Hand the prompt off, then import the result</h2>
             </div>
-            <div>
-              <p class="mini-label">Required root contract</p>
-              <code>&lt;main data-llastro-app data-llastro-theme="theme-id" data-llastro-scheme="scheme-id"&gt;</code>
-            </div>
+            <span class="status-pill" x-text="detectedThemeLabel"></span>
           </div>
 
           <label class="field">
@@ -135,17 +176,7 @@
 
           <div class="button-row">
             <button type="button" class="button button-primary" @click="copyPrompt()">Copy Prompt</button>
-            <button type="button" class="button button-secondary" @click="resetPrompt()">Reset Brief</button>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">2. Paste Response</p>
-              <h2>Import the code block</h2>
-            </div>
-            <span class="status-pill" x-text="detectedThemeLabel"></span>
+            <button type="button" class="button button-secondary" @click="loadExample()">Load Example</button>
           </div>
 
           <label class="field">
@@ -159,7 +190,7 @@
 
           <div class="button-row">
             <button type="button" class="button button-primary" @click="importResponse()">Import To Preview</button>
-            <button type="button" class="button button-secondary" @click="loadExample()">Load Example</button>
+            <button type="button" class="button button-secondary" @click="copyPrompt()">Copy Prompt Again</button>
             <button type="button" class="button button-ghost" @click="clearResponse()">Clear</button>
           </div>
 
@@ -172,27 +203,12 @@
               </div>
             </template>
           </div>
-
-          <div class="contract-grid">
-            <div>
-              <p class="mini-label">Authoring contract</p>
-              <ul class="checklist">
-                <template x-for="item in contractChecklist" :key="item">
-                  <li x-text="item"></li>
-                </template>
-              </ul>
-            </div>
-            <div>
-              <p class="mini-label">Detected runtime root</p>
-              <pre class="code-chip" x-text="importedRootSummary"></pre>
-            </div>
-          </div>
         </section>
 
-        <section class="panel panel-preview">
+        <section class="panel panel-preview" x-show="currentStudioStep === 'preview'" x-cloak>
           <div class="panel-head">
             <div>
-              <p class="eyebrow">3. Preview</p>
+              <p class="eyebrow">4. Preview</p>
               <h2>Sandboxed runtime</h2>
             </div>
             <span class="status-pill" x-text="publishStateLabel"></span>
@@ -218,10 +234,10 @@
           ></iframe>
         </section>
 
-        <section class="panel">
+        <section class="panel" x-show="currentStudioStep === 'reference'" x-cloak>
           <div class="panel-head">
             <div>
-              <p class="eyebrow">4. Theme Reference</p>
+              <p class="eyebrow">5. Theme Reference</p>
               <h2>Semantic patterns for the LLM</h2>
             </div>
             <span class="status-pill">LLM-friendly CSS</span>
@@ -241,6 +257,28 @@
                 </ul>
               </article>
             </template>
+          </div>
+        </section>
+
+        <section class="panel wizard-nav">
+          <div>
+            <p class="mini-label" x-text="`Current step: ${currentStudioStepIndex + 1} of ${studioSteps.length}`"></p>
+            <h2 x-text="currentStudioStepMeta.label"></h2>
+            <p class="muted-copy" x-text="currentStudioStepMeta.summary"></p>
+            <p class="wizard-nav__hint" x-show="previousStudioStepMeta || nextStudioStepMeta" x-cloak>
+              <span x-show="previousStudioStepMeta" x-text="previousStudioStepMeta ? `Back: ${previousStudioStepMeta.label}` : ''"></span>
+              <span x-show="previousStudioStepMeta && nextStudioStepMeta"> · </span>
+              <span x-show="nextStudioStepMeta" x-text="nextStudioStepMeta ? `Next: ${nextStudioStepMeta.label}` : ''"></span>
+            </p>
+          </div>
+
+          <div class="button-row wizard-nav__actions">
+            <button type="button" class="button button-secondary" :disabled="isFirstStudioStep" @click="previousStudioStep()">
+              Previous
+            </button>
+            <button type="button" class="button button-primary" :disabled="isLastStudioStep" @click="nextStudioStep()">
+              Next
+            </button>
           </div>
         </section>
       </main>

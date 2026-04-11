@@ -240,12 +240,32 @@ const HELPER_CLASSES = [
   "divider"
 ];
 
-const CONTRACT_CHECKLIST = [
-  "Return exactly one fenced html code block with no extra narration.",
-  `Use a single root element that includes ${APP_MARKER}, ${THEME_MARKER}, and ${SCHEME_MARKER}.`,
-  "Build with Alpine directives and optional inline scripts only.",
-  "Do not include custom CSS, stylesheet links, or external JS beyond Alpine.",
-  "Prefer semantic HTML and the provided helper classes over custom class systems."
+const STUDIO_STEPS = [
+  {
+    id: "brief",
+    label: "App Brief",
+    summary: "Write the product brief and lock in what the generated app should do."
+  },
+  {
+    id: "theme",
+    label: "Theme + Scheme",
+    summary: "Choose the visual direction and color scheme the model should follow."
+  },
+  {
+    id: "handoff",
+    label: "Copy + Paste",
+    summary: "Copy the generated prompt, paste the response back in, and import it."
+  },
+  {
+    id: "preview",
+    label: "Preview",
+    summary: "Inspect the sandboxed runtime and publish or export the draft."
+  },
+  {
+    id: "reference",
+    label: "Theme Reference",
+    summary: "Browse the semantic theme cues available to the model."
+  }
 ];
 
 const DEFAULT_BRIEF = [
@@ -265,6 +285,19 @@ const MINIMAL_FRAMEWORK_CSS = `
 [data-llastro-app] .app-shell {
   max-width: 1100px;
   margin: 0 auto;
+}
+[data-llastro-app] :where(*):not(:is(.stack, .split, .card-grid, .cluster, .toolbar, .actions)) > :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) + :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
+  margin-block-start: 0.9rem;
+}
+[data-llastro-app] .stack > :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) + :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
+  margin-block-start: 0.38rem;
+}
+[data-llastro-app] fieldset + fieldset {
+  margin-block-start: 1rem;
+}
+[data-llastro-app] :is(.hero, .spotlight, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) > :is(section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
+  background: rgba(245, 248, 250, 0.98);
+  border-color: rgba(77, 97, 111, 0.24);
 }
 [data-llastro-app] .stack {
   display: grid;
@@ -287,6 +320,9 @@ const MINIMAL_FRAMEWORK_CSS = `
   border-radius: 20px;
   border: 1px solid rgba(77, 97, 111, 0.15);
   background: rgba(255, 255, 255, 0.92);
+}
+[data-llastro-app] section {
+  margin-block: 0.85rem;
 }
 [data-llastro-app] button,
 [data-llastro-app] input,
@@ -523,13 +559,18 @@ function registerStudioApp() {
   }
 
   window.__llastroStudioRegistered = true;
+  window.Alpine.data("studioApp", createStudioApp);
+}
 
-  window.Alpine.data("studioApp", () => ({
+function createStudioApp() {
+  return {
     themes: THEMES,
+    studioSteps: STUDIO_STEPS,
     helperClasses: HELPER_CLASSES,
-    contractChecklist: CONTRACT_CHECKLIST,
     selectedTheme: THEMES[0].id,
     selectedScheme: THEMES[0].schemes[0].id,
+    currentStudioStep: STUDIO_STEPS[0].id,
+    appName: "",
     appBrief: DEFAULT_BRIEF,
     rawResponse: "",
     frameworkCss: MINIMAL_FRAMEWORK_CSS,
@@ -537,13 +578,13 @@ function registerStudioApp() {
     normalizedAppHtml: "",
     importedTheme: "",
     importedScheme: "",
-    importedRootSummary: "Nothing imported yet.",
     importedAppTitle: "Untitled Draft",
     currentView: "studio",
     library: [],
     activeLibraryId: "",
     isLibraryModalOpen: false,
     currentEditingId: "",
+    currentEditingSourceTitle: "",
     statusMessage: "Loading framework CSS...",
 
     get currentTheme() {
@@ -556,6 +597,31 @@ function registerStudioApp() {
 
     get currentScheme() {
       return schemeById(this.selectedTheme, this.selectedScheme);
+    },
+
+    get currentStudioStepIndex() {
+      const stepIndex = this.studioSteps.findIndex((step) => step.id === this.currentStudioStep);
+      return stepIndex >= 0 ? stepIndex : 0;
+    },
+
+    get currentStudioStepMeta() {
+      return this.studioSteps[this.currentStudioStepIndex] || this.studioSteps[0];
+    },
+
+    get isFirstStudioStep() {
+      return this.currentStudioStepIndex === 0;
+    },
+
+    get isLastStudioStep() {
+      return this.currentStudioStepIndex === this.studioSteps.length - 1;
+    },
+
+    get nextStudioStepMeta() {
+      return this.studioSteps[this.currentStudioStepIndex + 1] || null;
+    },
+
+    get previousStudioStepMeta() {
+      return this.studioSteps[this.currentStudioStepIndex - 1] || null;
     },
 
     get detectedThemeLabel() {
@@ -574,11 +640,32 @@ function registerStudioApp() {
       return this.library.find((app) => app.id === this.activeLibraryId) || null;
     },
 
+    get draftTitle() {
+      return this.appName.trim() || this.importedAppTitle || "Untitled Draft";
+    },
+
+    get isSaveAsNew() {
+      return Boolean(
+        this.currentEditingId &&
+        this.currentEditingSourceTitle &&
+        this.appName.trim() &&
+        this.appName.trim() !== this.currentEditingSourceTitle
+      );
+    },
+
     get publishButtonLabel() {
+      if (this.isSaveAsNew) {
+        return "Save As New App";
+      }
+
       return this.currentEditingId ? "Update Library App" : "Publish To Library";
     },
 
     get publishStateLabel() {
+      if (this.isSaveAsNew) {
+        return "Saving as new app";
+      }
+
       if (this.currentEditingId) {
         return "Editing published app";
       }
@@ -650,11 +737,45 @@ function registerStudioApp() {
     selectTheme(themeId) {
       this.selectedTheme = themeId;
       this.selectedScheme = themeById(themeId).schemes[0]?.id || "";
+      this.applySelectedThemeToDraft();
       this.saveState();
     },
 
     selectScheme(schemeId) {
       this.selectedScheme = normalizeSchemeId(this.selectedTheme, schemeId);
+      this.applySelectedThemeToDraft();
+      this.saveState();
+    },
+
+    handleAppNameInput() {
+      this.applyAppTitleToDraft();
+      this.saveState();
+    },
+
+    goToStudioStep(stepId) {
+      if (!this.studioSteps.some((step) => step.id === stepId)) {
+        return;
+      }
+
+      this.currentStudioStep = stepId;
+      this.saveState();
+    },
+
+    nextStudioStep() {
+      if (this.isLastStudioStep) {
+        return;
+      }
+
+      this.currentStudioStep = this.studioSteps[this.currentStudioStepIndex + 1].id;
+      this.saveState();
+    },
+
+    previousStudioStep() {
+      if (this.isFirstStudioStep) {
+        return;
+      }
+
+      this.currentStudioStep = this.studioSteps[this.currentStudioStepIndex - 1].id;
       this.saveState();
     },
 
@@ -675,7 +796,8 @@ function registerStudioApp() {
       await this.loadFrameworkCss();
       this.loadLibrary();
       this.restoreState();
-      window.addEventListener("hashchange", () => this.syncRouteFromHash());
+      window.addEventListener("hashchange", () => this.syncRouteFromLocation());
+      window.addEventListener("popstate", () => this.syncRouteFromLocation());
 
       if (!this.rawResponse.trim()) {
         this.loadExample(true);
@@ -683,15 +805,17 @@ function registerStudioApp() {
         this.importResponse(true);
       }
 
-      this.syncRouteFromHash();
+      this.syncRouteFromLocation();
     },
 
-    syncRouteFromHash() {
+    syncRouteFromLocation() {
       const hash = window.location.hash.replace(/^#/, "");
+      const searchParams = new URLSearchParams(window.location.search);
+      const wantsFullscreen = searchParams.get("fullscreen") === "1";
 
       if (!hash || hash === "studio") {
         this.currentView = "studio";
-        this.closeLibraryModal();
+        this.setLibraryModalOpen(false);
         return;
       }
 
@@ -699,6 +823,7 @@ function registerStudioApp() {
         this.currentView = "library";
         this.activeLibraryId = this.activeLibraryId || this.publishedApps[0]?.id || "";
         this.renderActiveLibraryPreview();
+        this.setLibraryModalOpen(wantsFullscreen && Boolean(this.activeLibraryId));
         return;
       }
 
@@ -707,40 +832,61 @@ function registerStudioApp() {
         this.currentView = "library";
         this.activeLibraryId = this.library.some((app) => app.id === appId) ? appId : this.publishedApps[0]?.id || "";
         this.renderActiveLibraryPreview();
+        this.setLibraryModalOpen(wantsFullscreen && Boolean(this.activeLibraryId));
         return;
       }
 
       this.currentView = "studio";
+      this.setLibraryModalOpen(false);
     },
 
-    setRouteHash(hash) {
-      if (window.location.hash === hash) {
-        this.syncRouteFromHash();
+    setLibraryModalOpen(isOpen) {
+      this.isLibraryModalOpen = isOpen;
+      document.body.style.overflow = isOpen ? "hidden" : "";
+    },
+
+    setRouteState(hash, { fullscreen = false, replace = false } = {}) {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.hash = hash;
+      if (fullscreen) {
+        nextUrl.searchParams.set("fullscreen", "1");
+      } else {
+        nextUrl.searchParams.delete("fullscreen");
+      }
+
+      const nextLocation = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+      const currentLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (nextLocation === currentLocation) {
+        this.syncRouteFromLocation();
         return;
       }
 
-      window.location.hash = hash;
+      const historyMethod = replace ? "replaceState" : "pushState";
+      window.history[historyMethod](null, "", nextLocation);
+      this.syncRouteFromLocation();
     },
 
     goToStudio() {
-      this.setRouteHash("#studio");
+      this.setRouteState("#studio", { fullscreen: false });
     },
 
-    goToLibrary(appId = this.activeLibraryId || this.publishedApps[0]?.id || "") {
-      this.setRouteHash(appId ? `#library/${encodeURIComponent(appId)}` : "#library");
+    goToLibrary(appId = this.activeLibraryId || this.publishedApps[0]?.id || "", options = {}) {
+      const { fullscreen = false, replace = false } = options;
+      this.setRouteState(appId ? `#library/${encodeURIComponent(appId)}` : "#library", { fullscreen, replace });
     },
 
     openLibraryApp(appId) {
       this.activeLibraryId = appId;
-      this.goToLibrary(appId);
-      this.isLibraryModalOpen = true;
-      document.body.style.overflow = "hidden";
-      this.renderActiveLibraryPreview();
+      this.goToLibrary(appId, { fullscreen: true });
     },
 
-    closeLibraryModal() {
-      this.isLibraryModalOpen = false;
-      document.body.style.overflow = "";
+    closeLibraryModal(updateRoute = true) {
+      if (updateRoute && this.currentView === "library") {
+        this.goToLibrary(this.activeLibraryId, { fullscreen: false, replace: true });
+        return;
+      }
+
+      this.setLibraryModalOpen(false);
     },
 
     editLibraryApp(appId) {
@@ -751,8 +897,10 @@ function registerStudioApp() {
 
       this.selectedTheme = app.themeId;
       this.selectedScheme = normalizeSchemeId(app.themeId, app.schemeId);
+      this.appName = app.title;
       this.rawResponse = app.source;
       this.currentEditingId = app.id;
+      this.currentEditingSourceTitle = app.title;
       this.importResponse(true);
       this.goToStudio();
       this.closeLibraryModal();
@@ -788,8 +936,8 @@ function registerStudioApp() {
       this.importedTheme = "";
       this.importedScheme = "";
       this.importedAppTitle = "Untitled Draft";
-      this.importedRootSummary = "Nothing imported yet.";
       this.currentEditingId = "";
+      this.currentEditingSourceTitle = "";
       this.renderPreview(this.buildPreviewDocument(this.wrapWithRoot(""), "llastro draft"));
       this.statusMessage = "Draft cleared.";
       this.saveState();
@@ -797,8 +945,67 @@ function registerStudioApp() {
 
     loadExample(silent = false) {
       this.currentEditingId = "";
+      this.currentEditingSourceTitle = "";
       this.rawResponse = buildExampleSnippet(this.selectedTheme, this.selectedScheme);
       this.importResponse(silent);
+    },
+
+    applyAppTitleToDraft() {
+      if (!this.normalizedAppHtml) {
+        return;
+      }
+
+      const parser = new DOMParser();
+      const draft = parser.parseFromString(`<body>${this.normalizedAppHtml}</body>`, "text/html");
+      const root = draft.body.querySelector(`[${APP_MARKER}]`);
+      if (!root) {
+        return;
+      }
+
+      const nextTitle = this.appName.trim();
+      if (nextTitle) {
+        root.setAttribute("data-llastro-title", nextTitle);
+      } else {
+        root.removeAttribute("data-llastro-title");
+      }
+
+      this.normalizedAppHtml = draft.body.innerHTML.trim();
+      this.importedAppTitle = extractAppMetadata(
+        this.normalizedAppHtml,
+        this.importedTheme || this.selectedTheme,
+        this.importedScheme || this.selectedScheme
+      ).title;
+      this.renderPreview(this.buildPreviewDocument(this.normalizedAppHtml, this.draftTitle));
+    },
+
+    applySelectedThemeToDraft() {
+      if (!this.normalizedAppHtml) {
+        return;
+      }
+
+      const parser = new DOMParser();
+      const draft = parser.parseFromString(`<body>${this.normalizedAppHtml}</body>`, "text/html");
+      const nextThemeId = themeById(this.selectedTheme).id;
+      const nextSchemeId = schemeById(nextThemeId, this.selectedScheme).id;
+      const root = draft.body.querySelector(`[${APP_MARKER}]`);
+
+      let nextHtml = "";
+      if (root) {
+        root.setAttribute(THEME_MARKER, nextThemeId);
+        root.setAttribute(SCHEME_MARKER, nextSchemeId);
+        nextHtml = draft.body.innerHTML.trim();
+      } else {
+        nextHtml = this.wrapWithRoot(draft.body.innerHTML.trim(), nextThemeId, nextSchemeId);
+      }
+
+      const meta = extractAppMetadata(nextHtml, nextThemeId, nextSchemeId);
+      this.normalizedAppHtml = nextHtml;
+      this.rawResponse = nextHtml;
+      this.importedTheme = nextThemeId;
+      this.importedScheme = nextSchemeId;
+      this.importedAppTitle = meta.title;
+      this.applyAppTitleToDraft();
+      this.statusMessage = `Draft updated to ${themeById(nextThemeId).name} · ${schemeById(nextThemeId, nextSchemeId).name}.`;
     },
 
     importResponse(silent = false) {
@@ -817,10 +1024,11 @@ function registerStudioApp() {
       this.importedTheme = result.themeId;
       this.importedScheme = result.schemeId;
       this.importedAppTitle = result.meta.title;
-      this.importedRootSummary = result.summary;
+      if (!this.appName.trim()) {
+        this.appName = result.meta.title;
+      }
+      this.applyAppTitleToDraft();
 
-      const previewHtml = this.buildPreviewDocument(result.html, result.meta.title);
-      this.renderPreview(previewHtml);
       this.statusMessage = silent ? "Draft loaded." : "Preview updated.";
       this.saveState();
     },
@@ -967,7 +1175,7 @@ function registerStudioApp() {
 
     getStandaloneDocument() {
       const appHtml = this.normalizedAppHtml || this.wrapWithRoot("");
-      return this.buildPreviewDocument(appHtml, this.importedAppTitle);
+      return this.buildPreviewDocument(appHtml, this.draftTitle);
     },
 
     buildStandaloneForLibraryApp(appId) {
@@ -1004,7 +1212,7 @@ function registerStudioApp() {
     },
 
     downloadExport() {
-      const name = slugify(this.importedAppTitle || this.importedTheme || this.selectedTheme);
+      const name = slugify(this.draftTitle || this.importedTheme || this.selectedTheme);
       this.downloadBlob(`llastro-${name}.html`, this.getStandaloneDocument());
       this.statusMessage = "Standalone HTML downloaded.";
     },
@@ -1031,11 +1239,12 @@ function registerStudioApp() {
         this.importedTheme || this.selectedTheme,
         this.importedScheme || this.selectedScheme
       );
-      const existingIndex = this.library.findIndex((app) => app.id === this.currentEditingId);
+      const title = this.appName.trim() || meta.title;
+      const existingIndex = this.isSaveAsNew ? -1 : this.library.findIndex((app) => app.id === this.currentEditingId);
       const existingApp = existingIndex >= 0 ? this.library[existingIndex] : null;
       const entry = {
         id: existingApp?.id || makeId(),
-        title: meta.title,
+        title,
         summary: meta.summary,
         themeId: meta.themeId,
         schemeId: meta.schemeId,
@@ -1052,8 +1261,10 @@ function registerStudioApp() {
       }
 
       this.currentEditingId = entry.id;
+      this.currentEditingSourceTitle = entry.title;
       this.activeLibraryId = entry.id;
       this.importedAppTitle = entry.title;
+      this.appName = entry.title;
       this.saveLibrary();
       this.saveState();
       this.goToLibrary(entry.id);
@@ -1101,9 +1312,12 @@ function registerStudioApp() {
       const payload = {
         selectedTheme: this.selectedTheme,
         selectedScheme: this.selectedScheme,
+        currentStudioStep: this.currentStudioStep,
+        appName: this.appName,
         appBrief: this.appBrief,
         rawResponse: this.rawResponse,
         currentEditingId: this.currentEditingId,
+        currentEditingSourceTitle: this.currentEditingSourceTitle,
         activeLibraryId: this.activeLibraryId
       };
 
@@ -1125,6 +1339,12 @@ function registerStudioApp() {
         if (typeof payload.selectedScheme === "string") {
           this.selectedScheme = normalizeSchemeId(this.selectedTheme, payload.selectedScheme);
         }
+        if (typeof payload.currentStudioStep === "string" && this.studioSteps.some((step) => step.id === payload.currentStudioStep)) {
+          this.currentStudioStep = payload.currentStudioStep;
+        }
+        if (typeof payload.appName === "string") {
+          this.appName = payload.appName;
+        }
         if (typeof payload.appBrief === "string") {
           this.appBrief = payload.appBrief;
         }
@@ -1133,6 +1353,9 @@ function registerStudioApp() {
         }
         if (typeof payload.currentEditingId === "string") {
           this.currentEditingId = payload.currentEditingId;
+        }
+        if (typeof payload.currentEditingSourceTitle === "string") {
+          this.currentEditingSourceTitle = payload.currentEditingSourceTitle;
         }
         if (typeof payload.activeLibraryId === "string") {
           this.activeLibraryId = payload.activeLibraryId;
@@ -1171,8 +1394,9 @@ function registerStudioApp() {
         this.statusMessage = "Library could not be restored.";
       }
     }
-  }));
+  };
 }
 
+window.studioApp = createStudioApp;
 document.addEventListener("alpine:init", registerStudioApp);
 registerStudioApp();
