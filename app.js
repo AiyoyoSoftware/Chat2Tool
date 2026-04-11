@@ -845,6 +845,7 @@ function createStudioApp() {
     library: [],
     activeLibraryId: "",
     isLibraryModalOpen: false,
+    isLibraryHeaderExpanded: false,
     skipStudioResetOnNextEntry: false,
     currentEditingId: "",
     currentEditingSourceTitle: "",
@@ -1221,6 +1222,7 @@ function createStudioApp() {
 
     setLibraryModalOpen(isOpen) {
       this.isLibraryModalOpen = isOpen;
+      this.isLibraryHeaderExpanded = false;
       document.body.style.overflow = isOpen ? "hidden" : "";
     },
 

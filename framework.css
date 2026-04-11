@@ -679,6 +679,18 @@
   font-size: 0.82rem;
 }
 
+[data-llastro-app] :where(.lucide, [data-lucide]) {
+  flex: 0 0 auto;
+}
+
+[data-llastro-app] :where(.lucide, [data-lucide]) + * {
+  margin-inline-start: 0.45rem;
+}
+
+[data-llastro-app] :is(button, .pill, .cluster, .toolbar, .actions) > :where(.lucide, [data-lucide]) + * {
+  margin-inline-start: 0;
+}
+
 [data-llastro-app] .muted {
   color: var(--ll-muted);
 }
@@ -734,6 +746,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.45rem;
   appearance: none;
   -webkit-appearance: none;
   border: 0;

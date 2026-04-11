@@ -396,15 +396,36 @@
       <div class="library-modal" x-show="isLibraryModalOpen" x-cloak>
         <div class="library-modal__backdrop" @click="closeLibraryModal()"></div>
         <section class="library-modal__panel">
-          <header class="library-modal__header">
-            <div>
+          <header class="library-modal__header" :class="{ 'is-expanded': isLibraryHeaderExpanded }">
+            <div class="library-modal__header-row">
+              <div class="library-modal__header-title">
+                <h2 x-text="activeLibraryApp?.title || 'Published app'"></h2>
+                <button
+                  type="button"
+                  class="library-modal__toggle"
+                  @click="isLibraryHeaderExpanded = !isLibraryHeaderExpanded"
+                  :aria-expanded="isLibraryHeaderExpanded.toString()"
+                  aria-controls="library-modal-meta"
+                  aria-label="Toggle app metadata"
+                >
+                  <span class="library-modal__toggle-icon" aria-hidden="true"></span>
+                </button>
+              </div>
+
+              <button type="button" class="library-modal__close" @click="closeLibraryModal()" aria-label="Close fullscreen viewer">
+                ×
+              </button>
+            </div>
+
+            <div
+              id="library-modal-meta"
+              class="library-modal__meta"
+              x-show="isLibraryHeaderExpanded"
+              x-cloak
+            >
               <p class="mini-label">Library app</p>
-              <h2 x-text="activeLibraryApp?.title || 'Published app'"></h2>
               <p class="muted-copy" x-text="activeLibraryApp?.summary || 'Standalone viewer'"></p>
             </div>
-            <button type="button" class="library-modal__close" @click="closeLibraryModal()" aria-label="Close fullscreen viewer">
-              ×
-            </button>
           </header>
 
           <iframe
