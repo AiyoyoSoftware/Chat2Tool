@@ -18,6 +18,7 @@ It is built around one workflow:
 - The root must declare exactly one theme with `data-llastro-theme`.
 - The root must also declare one valid color scheme with `data-llastro-scheme`.
 - Custom CSS and external scripts are stripped at import time so the shared theme framework stays consistent.
+- Lucide icon placeholders are supported through the host runtime using `data-lucide="icon-name"`.
 - Semantic HTML plus a small helper-class set gives LLM output a consistent visual language.
 
 ## Theme system
@@ -71,6 +72,7 @@ The host injects:
 
 - `framework.css` inline into the preview/export document
 - Alpine.js from the CDN
+- the vendored Lucide browser runtime from `vendor/lucide.min.js`
 - the pasted HTML fragment inside a standalone document shell
 - filesystem-backed library persistence in `data/library.json` for published apps
 

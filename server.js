@@ -23,8 +23,11 @@ function sendJson(response, statusCode, payload) {
   response.end(JSON.stringify(payload));
 }
 
-function sendText(response, statusCode, body, contentType = "text/plain; charset=utf-8") {
-  response.writeHead(statusCode, { "Content-Type": contentType });
+function sendText(response, statusCode, body, contentType = "text/plain; charset=utf-8", headers = {}) {
+  response.writeHead(statusCode, {
+    "Content-Type": contentType,
+    ...headers
+  });
   response.end(body);
 }
 
@@ -148,7 +151,9 @@ async function handleStatic(request, response, pathname) {
   try {
     const file = await readFile(filePath);
     const extension = path.extname(filePath).toLowerCase();
-    sendText(response, 200, file, MIME_TYPES[extension] || "application/octet-stream");
+    sendText(response, 200, file, MIME_TYPES[extension] || "application/octet-stream", {
+      "Cache-Control": "no-store"
+    });
   } catch (error) {
     if (error.code === "ENOENT") {
       sendText(response, 404, "Not found");

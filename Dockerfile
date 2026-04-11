@@ -12,6 +12,7 @@ COPY styles.css ./styles.css
 COPY framework.css ./framework.css
 COPY app.js ./app.js
 COPY server.js ./server.js
+COPY vendor ./vendor
 
 VOLUME ["/data"]
 

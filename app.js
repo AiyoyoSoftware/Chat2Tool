@@ -1,10 +1,11 @@
 const APP_MARKER = "data-llastro-app";
 const THEME_MARKER = "data-llastro-theme";
 const SCHEME_MARKER = "data-llastro-scheme";
-const STORAGE_KEY = "llastro-studio-v1";
+const STORAGE_KEY = "llastro-studio-v2";
 const LIBRARY_KEY = "llastro-library-v1";
 const LIBRARY_API_PATH = "/api/library";
 const ALPINE_CDN = "https://cdn.jsdelivr.net/npm/alpinejs@3.15.8/dist/cdn.min.js";
+const LUCIDE_RUNTIME_PATH = "./vendor/lucide.min.js";
 
 const THEMES = [
   {
@@ -381,6 +382,79 @@ const MINIMAL_FRAMEWORK_CSS = `
 }
 `;
 
+const MINIMAL_LUCIDE_RUNTIME = "window.lucide = window.lucide || { createIcons() {} };";
+
+const LUCIDE_BOOTSTRAP = `
+(() => {
+  const selector = "[data-lucide]";
+  const lucide = window.lucide;
+
+  if (!lucide || typeof lucide.createIcons !== "function") {
+    return;
+  }
+
+  let frameId = 0;
+
+  const renderIcons = () => {
+    frameId = 0;
+    const root = document.body;
+
+    if (!root || !root.querySelector(selector)) {
+      return;
+    }
+
+    try {
+      lucide.createIcons({ root });
+    } catch (error) {
+      console.error("Lucide icon render failed.", error);
+    }
+  };
+
+  const scheduleRender = () => {
+    if (frameId) {
+      cancelAnimationFrame(frameId);
+    }
+
+    frameId = requestAnimationFrame(renderIcons);
+  };
+
+  const hasPendingIcons = (node) => {
+    return (
+      node &&
+      node.nodeType === Node.ELEMENT_NODE &&
+      (node.matches(selector) || node.querySelector(selector))
+    );
+  };
+
+  const observeDocument = () => {
+    const root = document.body;
+
+    if (!root || typeof MutationObserver !== "function") {
+      scheduleRender();
+      return;
+    }
+
+    const observer = new MutationObserver((records) => {
+      if (records.some((record) => [...record.addedNodes].some(hasPendingIcons))) {
+        scheduleRender();
+      }
+    });
+
+    observer.observe(root, { childList: true, subtree: true });
+    scheduleRender();
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", observeDocument, { once: true });
+  } else {
+    observeDocument();
+  }
+
+  document.addEventListener("alpine:init", scheduleRender);
+  document.addEventListener("alpine:initialized", scheduleRender);
+})();
+`;
+
 function normalizeThemeId(themeId) {
   if (!themeId) {
     return "";
@@ -429,6 +503,10 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function escapeInlineScript(value) {
+  return String(value).replace(/<\/script/gi, "<\\/script");
 }
 
 function slugify(value) {
@@ -501,8 +579,8 @@ function buildExampleSnippet(themeId, schemeId) {
     "}\">",
     "  <header class=\"hero stack\">",
     "    <div class=\"cluster\">",
-    "      <span class=\"pill\">Retreat Control Room</span>",
-    "      <span class=\"pill\" x-text=\"tasks.length + ' workstreams'\"></span>",
+    "      <span class=\"pill cluster\"><i data-lucide=\"calendar-range\" aria-hidden=\"true\"></i><span>Retreat Control Room</span></span>",
+    "      <span class=\"pill cluster\"><i data-lucide=\"kanban\" aria-hidden=\"true\"></i><span x-text=\"tasks.length + ' workstreams'\"></span></span>",
     "    </div>",
     "    <div class=\"split\">",
     "      <div class=\"stack\">",
@@ -538,7 +616,8 @@ function buildExampleSnippet(themeId, schemeId) {
     "        </select>",
     "      </label>",
     "      <div class=\"actions\">",
-    "        <button type=\"button\" class=\"secondary\" @click=\"showComposer = !showComposer\">",
+    "        <button type=\"button\" class=\"secondary cluster\" @click=\"showComposer = !showComposer\">",
+    "          <i data-lucide=\"plus\" aria-hidden=\"true\"></i>",
     "          <span x-text=\"showComposer ? 'Hide composer' : 'Add task'\"></span>",
     "        </button>",
     "      </div>",
@@ -756,6 +835,7 @@ function createStudioApp() {
     appBrief: DEFAULT_BRIEF,
     rawResponse: "",
     frameworkCss: MINIMAL_FRAMEWORK_CSS,
+    lucideRuntime: MINIMAL_LUCIDE_RUNTIME,
     issues: [],
     normalizedAppHtml: "",
     importedTheme: "",
@@ -765,9 +845,10 @@ function createStudioApp() {
     library: [],
     activeLibraryId: "",
     isLibraryModalOpen: false,
+    skipStudioResetOnNextEntry: false,
     currentEditingId: "",
     currentEditingSourceTitle: "",
-    statusMessage: "Loading framework CSS...",
+    statusMessage: "Loading framework and icon runtime...",
 
     get currentTheme() {
       return themeById(this.selectedTheme);
@@ -949,10 +1030,13 @@ function createStudioApp() {
         "- Prefer a single fragment rooted in <main>.",
         `- The first root element must include ${APP_MARKER}, ${THEME_MARKER}=\"theme-id\", and ${SCHEME_MARKER}=\"scheme-id\".`,
         "- Keep everything inside one root app element.",
-        "- Alpine.js is already loaded by the host, so use Alpine directives directly.",
+        "- Alpine.js and Lucide are already loaded by the host, so use Alpine directives and Lucide placeholders directly.",
         "- You may use inline x-data for simple apps or inline <script> tags for Alpine.data registration.",
+        "- Do not include script tags for Alpine.js or Lucide.",
         "- Do not include <style>, <link rel=\"stylesheet\">, CSS frameworks, or external JS.",
-        "- Do not rely on any assets, fonts, icons, APIs, or network requests.",
+        "- Do not rely on any assets, fonts, APIs, or network requests.",
+        "- When an icon helps, use Lucide placeholders such as <i data-lucide=\"calendar\" aria-hidden=\"true\"></i>.",
+        "- Prefer Lucide over emoji or custom inline SVG for interface icons, and keep text labels visible for important actions.",
         "- Do not assume build tooling.",
         "- Keep implementation self-contained and host-safe.",
         "",
@@ -1083,6 +1167,7 @@ function createStudioApp() {
 
     async boot() {
       await this.loadFrameworkCss();
+      await this.loadLucideRuntime();
       await this.loadLibrary();
       this.restoreState();
       window.addEventListener("hashchange", () => this.syncRouteFromLocation());
@@ -1105,6 +1190,11 @@ function createStudioApp() {
       if (!hash || hash === "studio") {
         this.currentView = "studio";
         this.setLibraryModalOpen(false);
+        if (this.skipStudioResetOnNextEntry) {
+          this.skipStudioResetOnNextEntry = false;
+        } else {
+          this.resetStudioSession();
+        }
         return;
       }
 
@@ -1191,6 +1281,7 @@ function createStudioApp() {
       this.currentEditingId = app.id;
       this.currentEditingSourceTitle = app.title;
       this.importResponse(true);
+      this.skipStudioResetOnNextEntry = true;
       this.goToStudio();
       this.closeLibraryModal();
       this.statusMessage = `Editing "${app.title}".`;
@@ -1212,10 +1303,45 @@ function createStudioApp() {
       }
     },
 
+    async loadLucideRuntime() {
+      try {
+        const response = await fetch(LUCIDE_RUNTIME_PATH, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`lucide runtime responded with ${response.status}`);
+        }
+
+        this.lucideRuntime = await response.text();
+        this.statusMessage = "Framework and icon runtime loaded.";
+      } catch (error) {
+        console.error(error);
+        this.lucideRuntime = MINIMAL_LUCIDE_RUNTIME;
+        this.statusMessage = "Lucide runtime fallback loaded.";
+      }
+    },
+
     resetPrompt() {
       this.appBrief = DEFAULT_BRIEF;
       this.saveState();
       this.statusMessage = "Prompt brief reset.";
+    },
+
+    resetStudioSession() {
+      this.selectedTheme = THEMES[0].id;
+      this.selectedScheme = THEMES[0].schemes[0].id;
+      this.currentStudioStep = STUDIO_STEPS[0].id;
+      this.appName = "";
+      this.appBrief = DEFAULT_BRIEF;
+      this.rawResponse = "";
+      this.issues = [];
+      this.normalizedAppHtml = "";
+      this.importedTheme = "";
+      this.importedScheme = "";
+      this.importedAppTitle = "Untitled Draft";
+      this.currentEditingId = "";
+      this.currentEditingSourceTitle = "";
+      this.renderPreview(this.buildPreviewDocument(this.wrapWithRoot(""), "llastro draft"));
+      this.statusMessage = "Studio ready.";
+      this.saveState();
     },
 
     clearResponse() {
@@ -1345,6 +1471,14 @@ function createStudioApp() {
         });
       });
 
+      parsed.querySelectorAll('script[src*="lucide"], script[src*="@lucide"]').forEach((node) => {
+        node.remove();
+        issues.push({
+          level: "info",
+          text: "Removed a duplicate Lucide script because the runtime already loads Lucide."
+        });
+      });
+
       parsed.querySelectorAll("style, link[rel='stylesheet']").forEach((node) => {
         node.remove();
         issues.push({
@@ -1357,7 +1491,7 @@ function createStudioApp() {
         node.remove();
         issues.push({
           level: "warning",
-          text: "Removed an external script reference. Generated apps are expected to run on Alpine and inline code only."
+          text: "Removed an external script reference. Generated apps are expected to run on the built-in Alpine and Lucide runtime plus inline code only."
         });
       });
 
@@ -1433,7 +1567,9 @@ function createStudioApp() {
         "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
         `  <title>${escapeHtml(title)}</title>`,
         `  <style>${this.frameworkCss}</style>`,
+        `  <script>${escapeInlineScript(this.lucideRuntime || MINIMAL_LUCIDE_RUNTIME)}<\/script>`,
         `  <script defer src="${ALPINE_CDN}"><\/script>`,
+        `  <script>${escapeInlineScript(LUCIDE_BOOTSTRAP)}<\/script>`,
         "</head>",
         `<body>${appHtml}</body>`,
         "</html>"
