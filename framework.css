@@ -710,6 +710,10 @@
   margin-block-start: calc(var(--ll-flow-space) * 0.38);
 }
 
+[data-llastro-app] :is(ul, ol):is(.stack, .split, .card-grid, .cluster, .toolbar, .actions) > li + li {
+  margin-block-start: 0;
+}
+
 [data-llastro-app] table {
   width: 100%;
   border-collapse: collapse;

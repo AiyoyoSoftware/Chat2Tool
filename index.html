@@ -10,7 +10,7 @@
     >
     <link rel="stylesheet" href="./styles.css">
     <script defer src="./app.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.8/dist/cdn.min.js"></script>
+    <script defer src="./vendor/alpinejs.min.js"></script>
   </head>
   <body>
     <div class="ambient ambient-one"></div>
@@ -82,10 +82,26 @@
         <section class="panel" x-show="currentStudioStep === 'brief'" x-cloak>
           <div class="panel-head">
             <div>
-              <p class="eyebrow">1. App Brief</p>
-              <h2>Define what the app should accomplish</h2>
+              <p class="eyebrow">1. Prompt Setup</p>
+              <h2>Choose how the app should be defined</h2>
             </div>
-            <span class="status-pill" x-text="draftTitle"></span>
+            <span class="status-pill" x-text="activePromptMode.name"></span>
+          </div>
+
+          <div class="prompt-mode-grid">
+            <template x-for="mode in promptModes" :key="mode.id">
+              <button
+                type="button"
+                class="prompt-mode-card"
+                :class="{ 'is-active': promptMode === mode.id }"
+                @click="selectPromptMode(mode.id)"
+              >
+                <span class="prompt-mode-card__eyebrow" x-text="mode.eyebrow"></span>
+                <strong x-text="mode.name"></strong>
+                <span x-text="mode.summary"></span>
+                <small x-text="mode.detail"></small>
+              </button>
+            </template>
           </div>
 
           <label class="field">
@@ -102,7 +118,7 @@
             <p class="muted-copy" x-text="isSaveAsNew ? 'Renaming this edited draft will publish it as a new library app.' : 'Publishing will use this app name in the library.'"></p>
           </div>
 
-          <label class="field">
+          <label class="field" x-show="promptMode === 'custom'" x-cloak>
             <span>App brief</span>
             <textarea
               x-model="appBrief"
@@ -111,7 +127,17 @@
             ></textarea>
           </label>
 
-          <div class="button-row">
+          <section class="prompt-mode-note" x-show="promptMode === 'conversation'" x-cloak>
+            <p class="mini-label">Conversation flow</p>
+            <h3>Use the current chat as the requirements source.</h3>
+            <p class="muted-copy">
+              The generated prompt tells ChatGPT to distill the active conversation into one useful micro app,
+              keep the scope tight, and ignore side chatter. Paste it into the same conversation you want to turn
+              into an app.
+            </p>
+          </section>
+
+          <div class="button-row" x-show="promptMode === 'custom'" x-cloak>
             <button type="button" class="button button-secondary" @click="resetPrompt()">Reset Brief</button>
           </div>
         </section>
@@ -158,19 +184,70 @@
             </template>
           </div>
 
+          <section class="theme-preview-panel">
+            <div class="theme-preview-panel__head">
+              <div>
+                <p class="mini-label">Live theme fixture</p>
+                <h3 x-text="`${currentTheme.name} · ${currentScheme.name}`"></h3>
+                <p class="muted-copy" x-text="currentTheme.semanticHint"></p>
+              </div>
+              <div class="reference-card__meta">
+                <span class="status-pill" x-text="currentTheme.label"></span>
+                <span class="status-pill" x-text="currentScheme.name"></span>
+              </div>
+            </div>
+
+            <div class="theme-preview-panel__layout">
+              <aside class="theme-preview-panel__notes stack">
+                <div>
+                  <p class="reference-coverage"><strong>Covers:</strong> <span x-text="referenceCoverageLabel"></span></p>
+                </div>
+
+                <div>
+                  <p class="mini-label">Theme cues</p>
+                  <ul class="reference-list">
+                    <template x-for="cue in currentTheme.semanticCues" :key="cue">
+                      <li x-text="cue"></li>
+                    </template>
+                  </ul>
+                </div>
+
+                <div class="reference-scheme">
+                  <div class="reference-scheme__head">
+                    <div>
+                      <strong x-text="currentScheme.name"></strong>
+                      <span x-text="currentScheme.summary"></span>
+                    </div>
+                    <div class="reference-scheme__swatch" :style="`background:${currentScheme.gradient}`"></div>
+                  </div>
+                </div>
+              </aside>
+
+              <iframe
+                class="reference-preview theme-preview-frame"
+                :title="`${currentTheme.name} ${currentScheme.name} semantic preview`"
+                :srcdoc="currentStudioStep === 'theme' ? buildReferencePreview(currentTheme.id, currentScheme.id) : ''"
+                loading="lazy"
+                sandbox="allow-scripts allow-forms allow-modals"
+              ></iframe>
+            </div>
+          </section>
+
         </section>
 
         <section class="panel" x-show="currentStudioStep === 'handoff'" x-cloak>
           <div class="panel-head">
             <div>
               <p class="eyebrow">3. Copy Prompt + Paste Response</p>
-              <h2>Hand the prompt off, then import the result</h2>
+              <h2>Paste the response and move to preview</h2>
             </div>
             <span class="status-pill" x-text="detectedThemeLabel"></span>
           </div>
 
+          <p class="muted-copy" x-text="promptFieldHint"></p>
+
           <label class="field">
-            <span>Paste this prompt into ChatGPT</span>
+            <span x-text="promptFieldLabel"></span>
             <textarea x-bind:value="promptText" rows="18" readonly></textarea>
           </label>
 
@@ -183,13 +260,14 @@
             <span>ChatGPT response or raw HTML fragment</span>
             <textarea
               x-model="rawResponse"
+              @input="handleRawResponseInput()"
               rows="18"
               placeholder="Paste the single ```html block here."
             ></textarea>
           </label>
 
           <div class="button-row">
-            <button type="button" class="button button-primary" @click="importResponse()">Import To Preview</button>
+            <button type="button" class="button button-secondary" @click="importResponse()">Re-import Now</button>
             <button type="button" class="button button-secondary" @click="copyPrompt()">Copy Prompt Again</button>
             <button type="button" class="button button-ghost" @click="clearResponse()">Clear</button>
           </div>
@@ -232,64 +310,6 @@
             title="Generated Alpine app preview"
             sandbox="allow-scripts allow-forms allow-modals"
           ></iframe>
-        </section>
-
-        <section class="panel" x-show="currentStudioStep === 'reference'" x-cloak>
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">5. Theme Reference</p>
-              <h2>Scheme runs across the full semantic fixture</h2>
-            </div>
-            <span class="status-pill" x-text="`${totalSchemeCount} scheme runs`"></span>
-          </div>
-
-          <div class="theme-reference">
-            <template x-for="theme in themes" :key="`${theme.id}-reference`">
-              <article class="reference-card">
-                <div class="reference-swatch" :style="`background:${theme.gradient}`"></div>
-                <div class="reference-card__body">
-                  <div class="reference-card__head">
-                    <div>
-                      <h3 x-text="theme.name"></h3>
-                      <p x-text="theme.summary"></p>
-                    </div>
-                    <div class="reference-card__meta">
-                      <span class="status-pill" x-text="theme.label"></span>
-                      <span class="status-pill" x-text="`${theme.schemes.length} schemes`"></span>
-                    </div>
-                  </div>
-                  <p class="reference-note" x-text="theme.semanticHint"></p>
-                  <p class="reference-coverage"><strong>Covers:</strong> <span x-text="referenceCoverageLabel"></span></p>
-                  <ul class="reference-list">
-                    <template x-for="cue in theme.semanticCues" :key="cue">
-                      <li x-text="cue"></li>
-                    </template>
-                  </ul>
-
-                  <div class="reference-schemes">
-                    <template x-for="scheme in theme.schemes" :key="`${theme.id}-${scheme.id}-preview`">
-                      <section class="reference-scheme">
-                        <div class="reference-scheme__head">
-                          <div>
-                            <strong x-text="scheme.name"></strong>
-                            <span x-text="scheme.summary"></span>
-                          </div>
-                          <div class="reference-scheme__swatch" :style="`background:${scheme.gradient}`"></div>
-                        </div>
-                        <iframe
-                          class="reference-preview"
-                          :title="`${theme.name} ${scheme.name} semantic preview`"
-                          :srcdoc="currentStudioStep === 'reference' ? buildReferencePreview(theme.id, scheme.id) : ''"
-                          loading="lazy"
-                          sandbox="allow-scripts allow-forms allow-modals"
-                        ></iframe>
-                      </section>
-                    </template>
-                  </div>
-                </div>
-              </article>
-            </template>
-          </div>
         </section>
 
         <section class="panel wizard-nav">

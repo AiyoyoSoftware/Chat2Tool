@@ -4,7 +4,7 @@ const SCHEME_MARKER = "data-llastro-scheme";
 const STORAGE_KEY = "llastro-studio-v2";
 const LIBRARY_KEY = "llastro-library-v1";
 const LIBRARY_API_PATH = "/api/library";
-const ALPINE_CDN = "https://cdn.jsdelivr.net/npm/alpinejs@3.15.8/dist/cdn.min.js";
+const ALPINE_RUNTIME_PATH = "./vendor/alpinejs.min.js";
 const LUCIDE_RUNTIME_PATH = "./vendor/lucide.min.js";
 
 const THEMES = [
@@ -266,8 +266,8 @@ const REFERENCE_COVERAGE = [
 const STUDIO_STEPS = [
   {
     id: "brief",
-    label: "App Brief",
-    summary: "Write the product brief and lock in what the generated app should do."
+    label: "Prompt Setup",
+    summary: "Choose where the requirements come from and shape the app request."
   },
   {
     id: "theme",
@@ -277,17 +277,29 @@ const STUDIO_STEPS = [
   {
     id: "handoff",
     label: "Copy + Paste",
-    summary: "Copy the generated prompt, paste the response back in, and import it."
+    summary: "Copy the generated prompt, paste the response back in, and move straight to preview."
   },
   {
     id: "preview",
     label: "Preview",
     summary: "Inspect the sandboxed runtime and publish or export the draft."
+  }
+];
+
+const PROMPT_MODES = [
+  {
+    id: "custom",
+    eyebrow: "Custom brief",
+    name: "Choose Your Own Prompt",
+    summary: "Write the product brief yourself and steer the app directly.",
+    detail: "Best when you already know the exact micro app you want to generate."
   },
   {
-    id: "reference",
-    label: "Theme Reference",
-    summary: "Browse the semantic theme cues available to the model."
+    id: "conversation",
+    eyebrow: "Conversation distill",
+    name: "Use Conversation",
+    summary: "Turn the current chat into one focused micro app.",
+    detail: "Best when the requirements already live in an existing conversation."
   }
 ];
 
@@ -383,10 +395,12 @@ const MINIMAL_FRAMEWORK_CSS = `
 `;
 
 const MINIMAL_LUCIDE_RUNTIME = "window.lucide = window.lucide || { createIcons() {} };";
+const MINIMAL_ALPINE_RUNTIME = "window.Alpine = window.Alpine || { start() {} };";
 
 const LUCIDE_BOOTSTRAP = `
 (() => {
   const selector = "[data-lucide]";
+  const labelClassName = "ll-inline-label";
   const lucide = window.lucide;
 
   if (!lucide || typeof lucide.createIcons !== "function") {
@@ -394,6 +408,34 @@ const LUCIDE_BOOTSTRAP = `
   }
 
   let frameId = 0;
+
+  const normalizeIconLabels = (root) => {
+    if (!root || typeof root.querySelectorAll !== "function") {
+      return;
+    }
+
+    root.querySelectorAll(".lucide").forEach((icon) => {
+      const parent = icon.parentElement;
+      if (!parent) {
+        return;
+      }
+
+      [...parent.childNodes].forEach((node) => {
+        if (node.nodeType !== Node.TEXT_NODE) {
+          return;
+        }
+
+        if (!node.textContent || !node.textContent.trim()) {
+          return;
+        }
+
+        const label = document.createElement("span");
+        label.className = labelClassName;
+        label.textContent = node.textContent.trim();
+        parent.replaceChild(label, node);
+      });
+    });
+  };
 
   const renderIcons = () => {
     frameId = 0;
@@ -405,6 +447,7 @@ const LUCIDE_BOOTSTRAP = `
 
     try {
       lucide.createIcons({ root });
+      normalizeIconLabels(root);
     } catch (error) {
       console.error("Lucide icon render failed.", error);
     }
@@ -507,6 +550,10 @@ function escapeHtml(value) {
 
 function escapeInlineScript(value) {
   return String(value).replace(/<\/script/gi, "<\\/script");
+}
+
+function stripSourceMapComment(value) {
+  return String(value).replace(/\n?\/\/# sourceMappingURL=.*$/m, "");
 }
 
 function slugify(value) {
@@ -827,14 +874,18 @@ function createStudioApp() {
   return {
     themes: THEMES,
     studioSteps: STUDIO_STEPS,
+    promptModes: PROMPT_MODES,
     helperClasses: HELPER_CLASSES,
     selectedTheme: THEMES[0].id,
     selectedScheme: THEMES[0].schemes[0].id,
     currentStudioStep: STUDIO_STEPS[0].id,
+    promptMode: PROMPT_MODES[0].id,
     appName: "",
     appBrief: DEFAULT_BRIEF,
     rawResponse: "",
+    rawImportTimer: 0,
     frameworkCss: MINIMAL_FRAMEWORK_CSS,
+    alpineRuntime: MINIMAL_ALPINE_RUNTIME,
     lucideRuntime: MINIMAL_LUCIDE_RUNTIME,
     issues: [],
     normalizedAppHtml: "",
@@ -863,10 +914,6 @@ function createStudioApp() {
       return schemeById(this.selectedTheme, this.selectedScheme);
     },
 
-    get totalSchemeCount() {
-      return this.themes.reduce((total, theme) => total + theme.schemes.length, 0);
-    },
-
     get referenceCoverageLabel() {
       return REFERENCE_COVERAGE.join(", ");
     },
@@ -878,6 +925,10 @@ function createStudioApp() {
 
     get currentStudioStepMeta() {
       return this.studioSteps[this.currentStudioStepIndex] || this.studioSteps[0];
+    },
+
+    get activePromptMode() {
+      return this.promptModes.find((mode) => mode.id === this.promptMode) || this.promptModes[0];
     },
 
     get isFirstStudioStep() {
@@ -948,6 +999,26 @@ function createStudioApp() {
     },
 
     get promptText() {
+      return this.buildPromptText();
+    },
+
+    get promptFieldLabel() {
+      if (this.promptMode === "conversation") {
+        return "Paste this prompt into the existing ChatGPT conversation";
+      }
+
+      return "Paste this prompt into ChatGPT";
+    },
+
+    get promptFieldHint() {
+      if (this.promptMode === "conversation") {
+        return "Send this in the same conversation you want to distill into a shipped micro app.";
+      }
+
+      return "Send this in a fresh ChatGPT prompt or a working thread for the app you want to generate.";
+    },
+
+    buildPromptText() {
       const themeCatalogLines = this.themes
         .map((theme) => {
           const schemeLines = theme.schemes
@@ -964,8 +1035,116 @@ function createStudioApp() {
         .map((scheme) => `- ${scheme.id}: ${scheme.summary}`)
         .join("\n");
 
+      const sharedRuntimeLines = [
+        "Return format:",
+        "- Return exactly one fenced ```html code block and nothing else.",
+        "- Do not return markdown prose before or after the code block.",
+        "- Do not return a full HTML document unless absolutely necessary.",
+        "- Prefer a single fragment rooted in <main>.",
+        "",
+        "Runtime contract:",
+        `- The first root element must include ${APP_MARKER}, ${THEME_MARKER}=\"theme-id\", and ${SCHEME_MARKER}=\"scheme-id\".`,
+        "- Alpine.js and Lucide are already loaded by the host, so use Alpine directives and Lucide placeholders directly.",
+        "- You may use inline x-data for simple apps or inline <script> tags for Alpine.data registration.",
+        "- Do not include script tags for Alpine.js or Lucide.",
+        "- Do not include <style>, <link rel=\"stylesheet\">, CSS frameworks, or external JS.",
+        "- Do not rely on any assets, fonts, APIs, or network requests.",
+        "- Keep everything inside one root app element.",
+        "- Keep implementation self-contained and host-safe.",
+        "- When an icon helps, use Lucide placeholders such as <i data-lucide=\"calendar\" aria-hidden=\"true\"></i>.",
+        "- Prefer Lucide over emoji or custom inline SVG for interface icons, and keep text labels visible for important actions.",
+        "",
+        "Semantic structure:",
+        "- Use semantic HTML first: header, nav, main, section, article, aside, form, fieldset, table, dialog, footer.",
+        `- Use these helper classes when helpful: ${this.helperClasses.join(", ")}.`,
+        "- Prefer structure and hierarchy over ornamental wrappers.",
+        "",
+        "Quality bar:",
+        "- Production-ready, focused, and complete.",
+        "- No dead buttons.",
+        "- No filler text, placeholders, fake features, or commentary.",
+        "- No \"coming soon\" elements.",
+        "- No fake notifications, fake users, fake activity feeds, or vanity metrics unless explicitly requested and central to the tool.",
+        "- Make concrete implementation choices and implement them cleanly.",
+        "",
+        "State design guidance:",
+        "- Model the app state clearly.",
+        "- Keep mutable state minimal.",
+        "- Compute derived output instead of duplicating state.",
+        "- Keep naming clean and readable.",
+        "- Prefer a single Alpine component unless the app genuinely benefits from a small registration script.",
+        "- Avoid tangled event logic.",
+        "",
+        "Theme catalog:",
+        themeCatalogLines,
+        "",
+        "Theme selection rule:",
+        "- Choose exactly one theme.",
+        `- For this run, prefer ${this.currentTheme.id} unless the requirements clearly point elsewhere.`,
+        "- If the requirements are ambiguous and no stronger direction is implied, flat is the safest fallback.",
+        "",
+        "Color scheme rule:",
+        "- Use a valid scheme for the chosen theme.",
+        "- For flat, prefer metro.",
+        "- Allowed flat schemes:",
+        flatSchemeLines,
+        `- If you choose ${this.currentTheme.id}, prefer ${this.currentScheme.id}. Allowed schemes for this theme are:`,
+        currentSchemeLines,
+        "",
+        "Decision policy:",
+        "- Start from the core user task.",
+        "- Choose the smallest complete feature set that makes the app genuinely useful.",
+        "- Cut anything that does not improve the primary workflow.",
+        "- Favor clarity, responsiveness, and real interaction over breadth.",
+        "- When in doubt, simplify.",
+        "",
+        "Example root:",
+        `<main ${APP_MARKER} ${THEME_MARKER}="${this.currentTheme.id}" ${SCHEME_MARKER}="${this.currentScheme.id}" class="app-shell stack">`
+      ];
+
+      if (this.promptMode === "conversation") {
+        return [
+          "You are generating a production-ready Alpine.js single page micro app for the llastro host runtime.",
+          "",
+          "Use the current conversation as the only source of requirements.",
+          "",
+          "Build the app that a smart human would create after reading this conversation and deciding to ship only the most useful 1-page tool from it.",
+          "",
+          "Before generating the app, internally determine:",
+          "1. the primary user problem in the conversation,",
+          "2. the smallest useful tool that solves it,",
+          "3. the minimal feature set required for that tool to feel complete.",
+          "",
+          "Then implement that tool directly.",
+          "",
+          "Prioritization rules:",
+          "- Prefer the main problem over side topics.",
+          "- Prefer explicit asks over inferred wishes.",
+          "- Prefer repeated themes over one-off mentions.",
+          "- Prefer a narrow useful tool over a broad feature-rich app.",
+          "- Prefer shipping a complete small app over an ambitious incomplete one.",
+          "",
+          "Conversation distillation rules:",
+          "- Extract concrete tasks, constraints, vocabulary, and preferences from the chat.",
+          "- Ignore filler, side chatter, and abandoned directions unless they reinforce the final intent.",
+          "- Do not include features unless they are directly requested, strongly implied by repeated discussion, or necessary for usability.",
+          "- Reuse the language and framing of the conversation where it improves fit.",
+          "",
+          "Scope rules:",
+          "- Build one micro app, not a suite.",
+          "- Keep the scope tight, coherent, and immediately usable.",
+          "- Avoid backend assumptions unless clearly required by the conversation.",
+          "- Prefer local state and lightweight interactions.",
+          "- Make the result feel specific to this conversation, not like a generic starter template.",
+          "",
+          ...sharedRuntimeLines
+        ].join("\n");
+      }
+
       return [
         "You are generating a production-ready Alpine.js micro-app for the llastro host runtime.",
+        "",
+        "Use the app brief below as the source of requirements.",
         "",
         "Your job is to produce a compact, self-contained, directly usable single-page utility. The result should feel like a saved executable artifact derived from a conversation: focused, practical, and worth revisiting.",
         "",
@@ -1015,76 +1194,13 @@ function createStudioApp() {
         "- Prefer a strong main panel with a few supporting surfaces over sprawling grids.",
         "- When the brief is ambiguous, choose the simplest complete interpretation.",
         "",
-        "Output quality bar:",
-        "- The app should feel complete, not like a mockup.",
-        "- No dead buttons.",
-        "- No \"coming soon\" elements.",
-        "- No placeholder charts unless they are actually meaningful to the task.",
-        "- No fake notifications, fake users, fake activity feeds, or vanity metrics unless explicitly requested and central to the app.",
-        "- Avoid empty cards and repetitive panel layouts.",
-        "- Avoid long explanatory text unless the task genuinely needs it.",
-        "",
-        "Implementation rules:",
-        "- Return exactly one fenced ```html code block and nothing else.",
-        "- Do not return markdown prose before or after the code block.",
-        "- Do not return a full HTML document unless absolutely necessary.",
-        "- Prefer a single fragment rooted in <main>.",
-        `- The first root element must include ${APP_MARKER}, ${THEME_MARKER}=\"theme-id\", and ${SCHEME_MARKER}=\"scheme-id\".`,
-        "- Keep everything inside one root app element.",
-        "- Alpine.js and Lucide are already loaded by the host, so use Alpine directives and Lucide placeholders directly.",
-        "- You may use inline x-data for simple apps or inline <script> tags for Alpine.data registration.",
-        "- Do not include script tags for Alpine.js or Lucide.",
-        "- Do not include <style>, <link rel=\"stylesheet\">, CSS frameworks, or external JS.",
-        "- Do not rely on any assets, fonts, APIs, or network requests.",
-        "- When an icon helps, use Lucide placeholders such as <i data-lucide=\"calendar\" aria-hidden=\"true\"></i>.",
-        "- Prefer Lucide over emoji or custom inline SVG for interface icons, and keep text labels visible for important actions.",
-        "- Do not assume build tooling.",
-        "- Keep implementation self-contained and host-safe.",
-        "",
-        "Semantic structure:",
-        "- Use semantic HTML first: header, nav, main, section, article, aside, form, fieldset, table, dialog, footer.",
-        `- Use these helper classes when helpful: ${this.helperClasses.join(", ")}.`,
-        "- Prefer structure and hierarchy over ornamental wrappers.",
-        "",
-        "State design guidance:",
-        "- Model the app state clearly.",
-        "- Keep mutable state minimal.",
-        "- Compute derived output instead of duplicating state.",
-        "- Keep naming clean and readable.",
-        "- Prefer a single Alpine component unless the app genuinely benefits from a small registration script.",
-        "- Avoid tangled event logic.",
-        "",
         "Micro-app heuristics:",
         "- Good app types include generators, planners, calculators, builders, checklists, trackers, explorers, editors, and decision helpers.",
         "- Prefer one main object of interaction.",
         "- Prefer interfaces where the user changes inputs and immediately sees useful output.",
         "- Prefer operational tools over presentation surfaces.",
         "",
-        "Theme catalog:",
-        themeCatalogLines,
-        "",
-        "Theme selection rule:",
-        "- Choose exactly one theme.",
-        `- For this run, prefer ${this.currentTheme.id} unless the brief clearly points elsewhere.`,
-        "- If the brief is ambiguous and no stronger direction is implied, flat is the safest fallback.",
-        "",
-        "Color scheme rule:",
-        "- Use a valid scheme for the chosen theme.",
-        "- For flat, prefer metro.",
-        "- Allowed flat schemes:",
-        flatSchemeLines,
-        `- If you choose ${this.currentTheme.id}, prefer ${this.currentScheme.id}. Allowed schemes for this theme are:`,
-        currentSchemeLines,
-        "",
-        "Decision policy:",
-        "- Start from the core user task.",
-        "- Choose the smallest complete feature set that makes the app genuinely useful.",
-        "- Cut anything that does not improve the primary workflow.",
-        "- Favor clarity, responsiveness, and real interaction over breadth.",
-        "- When in doubt, simplify.",
-        "",
-        "Example root:",
-        `<main ${APP_MARKER} ${THEME_MARKER}="${this.currentTheme.id}" ${SCHEME_MARKER}="${this.currentScheme.id}" class="app-shell stack">`,
+        ...sharedRuntimeLines,
         "",
         "App brief:",
         this.appBrief.trim() || DEFAULT_BRIEF
@@ -1115,10 +1231,55 @@ function createStudioApp() {
       this.saveState();
     },
 
+    selectPromptMode(modeId) {
+      if (!this.promptModes.some((mode) => mode.id === modeId)) {
+        return;
+      }
+
+      this.promptMode = modeId;
+      this.statusMessage = modeId === "conversation"
+        ? "Conversation prompt ready."
+        : "Custom prompt ready.";
+      this.saveState();
+    },
+
     selectScheme(schemeId) {
       this.selectedScheme = normalizeSchemeId(this.selectedTheme, schemeId);
       this.applySelectedThemeToDraft();
       this.saveState();
+    },
+
+    handleRawResponseInput() {
+      this.saveState();
+
+      if (this.rawImportTimer) {
+        clearTimeout(this.rawImportTimer);
+        this.rawImportTimer = 0;
+      }
+
+      const raw = this.rawResponse.trim();
+      if (!raw || (!raw.includes("<") && !raw.includes("```"))) {
+        return;
+      }
+
+      this.rawImportTimer = window.setTimeout(() => {
+        this.rawImportTimer = 0;
+        this.importResponse(true);
+      }, 280);
+    },
+
+    flushPendingResponseImport() {
+      if (this.rawImportTimer) {
+        clearTimeout(this.rawImportTimer);
+        this.rawImportTimer = 0;
+      }
+
+      const raw = this.rawResponse.trim();
+      if (!raw || (!raw.includes("<") && !raw.includes("```"))) {
+        return;
+      }
+
+      this.importResponse(true);
     },
 
     handleAppNameInput() {
@@ -1131,6 +1292,10 @@ function createStudioApp() {
         return;
       }
 
+      if (this.currentStudioStep === "handoff" && stepId !== "handoff") {
+        this.flushPendingResponseImport();
+      }
+
       this.currentStudioStep = stepId;
       this.saveState();
     },
@@ -1140,6 +1305,10 @@ function createStudioApp() {
         return;
       }
 
+      if (this.currentStudioStep === "handoff") {
+        this.flushPendingResponseImport();
+      }
+
       this.currentStudioStep = this.studioSteps[this.currentStudioStepIndex + 1].id;
       this.saveState();
     },
@@ -1147,6 +1316,10 @@ function createStudioApp() {
     previousStudioStep() {
       if (this.isFirstStudioStep) {
         return;
+      }
+
+      if (this.currentStudioStep === "handoff") {
+        this.flushPendingResponseImport();
       }
 
       this.currentStudioStep = this.studioSteps[this.currentStudioStepIndex - 1].id;
@@ -1168,6 +1341,7 @@ function createStudioApp() {
 
     async boot() {
       await this.loadFrameworkCss();
+      await this.loadAlpineRuntime();
       await this.loadLucideRuntime();
       await this.loadLibrary();
       this.restoreState();
@@ -1305,6 +1479,22 @@ function createStudioApp() {
       }
     },
 
+    async loadAlpineRuntime() {
+      try {
+        const response = await fetch(ALPINE_RUNTIME_PATH, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`alpine runtime responded with ${response.status}`);
+        }
+
+        this.alpineRuntime = stripSourceMapComment(await response.text());
+        this.statusMessage = "Framework and Alpine runtime loaded.";
+      } catch (error) {
+        console.error(error);
+        this.alpineRuntime = MINIMAL_ALPINE_RUNTIME;
+        this.statusMessage = "Alpine runtime fallback loaded.";
+      }
+    },
+
     async loadLucideRuntime() {
       try {
         const response = await fetch(LUCIDE_RUNTIME_PATH, { cache: "no-store" });
@@ -1312,7 +1502,7 @@ function createStudioApp() {
           throw new Error(`lucide runtime responded with ${response.status}`);
         }
 
-        this.lucideRuntime = await response.text();
+        this.lucideRuntime = stripSourceMapComment(await response.text());
         this.statusMessage = "Framework and icon runtime loaded.";
       } catch (error) {
         console.error(error);
@@ -1331,6 +1521,7 @@ function createStudioApp() {
       this.selectedTheme = THEMES[0].id;
       this.selectedScheme = THEMES[0].schemes[0].id;
       this.currentStudioStep = STUDIO_STEPS[0].id;
+      this.promptMode = PROMPT_MODES[0].id;
       this.appName = "";
       this.appBrief = DEFAULT_BRIEF;
       this.rawResponse = "";
@@ -1347,6 +1538,11 @@ function createStudioApp() {
     },
 
     clearResponse() {
+      if (this.rawImportTimer) {
+        clearTimeout(this.rawImportTimer);
+        this.rawImportTimer = 0;
+      }
+
       this.rawResponse = "";
       this.issues = [];
       this.normalizedAppHtml = "";
@@ -1504,10 +1700,23 @@ function createStudioApp() {
         root = body.firstElementChild;
       }
 
-      let themeId = normalizeThemeId(root?.getAttribute(THEME_MARKER) || "");
+      const selectedThemeId = themeById(this.selectedTheme).id;
+      const selectedSchemeId = schemeById(selectedThemeId, this.selectedScheme).id;
+      const pastedThemeId = normalizeThemeId(root?.getAttribute(THEME_MARKER) || "");
+      const isEditingWithThemeOverride = Boolean(this.currentEditingId);
 
-      if (!themeId) {
-        themeId = this.selectedTheme;
+      let themeId = pastedThemeId;
+
+      if (isEditingWithThemeOverride) {
+        themeId = selectedThemeId;
+        if (pastedThemeId && pastedThemeId !== selectedThemeId) {
+          issues.push({
+            level: "info",
+            text: `Editing mode kept the selected theme ${selectedThemeId} instead of the pasted ${THEME_MARKER} value ${pastedThemeId}.`
+          });
+        }
+      } else if (!themeId) {
+        themeId = selectedThemeId;
         issues.push({
           level: "warning",
           text: `No valid ${THEME_MARKER} was found. Falling back to ${themeId}.`
@@ -1516,7 +1725,16 @@ function createStudioApp() {
 
       let schemeId = normalizeSchemeId(themeId, root?.getAttribute(SCHEME_MARKER) || "");
 
-      if (root?.getAttribute(SCHEME_MARKER) !== schemeId) {
+      if (isEditingWithThemeOverride) {
+        const pastedSchemeId = normalizeSchemeId(themeId, root?.getAttribute(SCHEME_MARKER) || "");
+        schemeId = selectedSchemeId;
+        if (pastedSchemeId !== selectedSchemeId) {
+          issues.push({
+            level: "info",
+            text: `Editing mode kept the selected scheme ${selectedSchemeId} instead of the pasted ${SCHEME_MARKER} value ${pastedSchemeId}.`
+          });
+        }
+      } else if (root?.getAttribute(SCHEME_MARKER) !== schemeId) {
         issues.push({
           level: "warning",
           text: `No valid ${SCHEME_MARKER} was found for ${themeId}. Falling back to ${schemeId}.`
@@ -1569,11 +1787,13 @@ function createStudioApp() {
         "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
         `  <title>${escapeHtml(title)}</title>`,
         `  <style>${this.frameworkCss}</style>`,
-        `  <script>${escapeInlineScript(this.lucideRuntime || MINIMAL_LUCIDE_RUNTIME)}<\/script>`,
-        `  <script defer src="${ALPINE_CDN}"><\/script>`,
-        `  <script>${escapeInlineScript(LUCIDE_BOOTSTRAP)}<\/script>`,
         "</head>",
-        `<body>${appHtml}</body>`,
+        "<body>",
+        appHtml,
+        `  <script>${escapeInlineScript(this.alpineRuntime || MINIMAL_ALPINE_RUNTIME)}<\/script>`,
+        `  <script>${escapeInlineScript(this.lucideRuntime || MINIMAL_LUCIDE_RUNTIME)}<\/script>`,
+        `  <script>${escapeInlineScript(LUCIDE_BOOTSTRAP)}<\/script>`,
+        "</body>",
         "</html>"
       ].join("\n");
     },
@@ -1837,6 +2057,7 @@ function createStudioApp() {
         selectedTheme: this.selectedTheme,
         selectedScheme: this.selectedScheme,
         currentStudioStep: this.currentStudioStep,
+        promptMode: this.promptMode,
         appName: this.appName,
         appBrief: this.appBrief,
         rawResponse: this.rawResponse,
@@ -1865,6 +2086,9 @@ function createStudioApp() {
         }
         if (typeof payload.currentStudioStep === "string" && this.studioSteps.some((step) => step.id === payload.currentStudioStep)) {
           this.currentStudioStep = payload.currentStudioStep;
+        }
+        if (typeof payload.promptMode === "string" && this.promptModes.some((mode) => mode.id === payload.promptMode)) {
+          this.promptMode = payload.promptMode;
         }
         if (typeof payload.appName === "string") {
           this.appName = payload.appName;
