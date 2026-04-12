@@ -286,30 +286,125 @@
         <section class="panel panel-preview" x-show="currentStudioStep === 'preview'" x-cloak>
           <div class="panel-head">
             <div>
-              <p class="eyebrow">4. Preview</p>
-              <h2>Sandboxed runtime</h2>
+              <p class="eyebrow">4. Edit</p>
+              <h2>Sandboxed editor</h2>
             </div>
             <span class="status-pill" x-text="publishStateLabel"></span>
           </div>
 
           <div class="preview-toolbar">
-            <p class="preview-copy">
-              Preview runs inside a sandboxed iframe with Alpine and Lucide preloaded. Exported files keep the
-              same theme framework and icon runtime and work as standalone HTML.
-            </p>
-            <div class="button-row">
-              <button type="button" class="button button-primary" @click="publishCurrentApp()" x-text="publishButtonLabel"></button>
-              <button type="button" class="button button-primary" @click="downloadExport()">Download HTML</button>
-              <button type="button" class="button button-secondary" @click="copyStandalone()">Copy HTML</button>
+            <p class="preview-copy" x-text="editorEnabled ? 'Edit mode turns the preview into a direct-edit canvas. Tap or click any text or block to select it.' : 'Preview runs inside a sandboxed iframe with Alpine and Lucide preloaded. Exported files keep the same theme framework and icon runtime.'"></p>
+
+            <div class="preview-toolbar__controls">
+              <div class="preview-toggle-group" role="group" aria-label="Preview editor">
+                <button
+                  type="button"
+                  class="preview-toggle"
+                  :class="{ 'is-active': editorEnabled }"
+                  @click="toggleEditorMode()"
+                  x-text="editorEnabled ? 'Exit Edit Mode' : 'Enter Edit Mode'"
+                ></button>
+              </div>
+
+              <div class="button-row">
+                <button type="button" class="button button-primary" @click="publishCurrentApp()" x-text="publishButtonLabel"></button>
+                <button type="button" class="button button-primary" @click="downloadExport()">Download HTML</button>
+                <button type="button" class="button button-secondary" @click="copyStandalone()">Copy HTML</button>
+              </div>
             </div>
           </div>
 
-          <iframe
-            x-ref="previewFrame"
-            class="preview-frame"
-            title="Generated Alpine app preview"
-            sandbox="allow-scripts allow-forms allow-modals"
-          ></iframe>
+          <div class="preview-shell" :class="{ 'is-editor-open': editorEnabled }">
+            <section class="preview-stage">
+              <div class="preview-stage__bar">
+                <div>
+                  <p class="mini-label">Canvas</p>
+                  <h3>Editor canvas</h3>
+                </div>
+              </div>
+
+              <div class="preview-canvas">
+                <div class="preview-canvas__frame">
+                  <iframe
+                    x-ref="previewFrame"
+                    class="preview-frame"
+                    title="Generated Alpine app preview"
+                    sandbox="allow-scripts allow-forms allow-modals"
+                  ></iframe>
+                </div>
+              </div>
+            </section>
+
+            <aside class="editor-sidebar" x-show="editorEnabled" x-cloak>
+              <section class="editor-sidebar__section editor-sidebar__section--compact" x-show="!hasEditorSelection" x-cloak>
+                <p class="mini-label">Selection</p>
+                <h3>No selection yet.</h3>
+                <p class="muted-copy">Tap or click any text or container in the preview to start editing.</p>
+              </section>
+
+              <section class="editor-sidebar__section editor-sidebar__section--compact" x-show="editorSelectionText" x-cloak>
+                <p class="mini-label">Text editing</p>
+                <h3 x-text="editorSelectionText ? editorSelectionText.label : 'Selected text'"></h3>
+                <p class="preview-copy--subtle" x-text="editorSelectionTextHelper"></p>
+
+                <label class="field" x-show="!editorSelectionTextIsComputed" x-cloak>
+                  <span>Content</span>
+                  <textarea
+                    x-model="editorTextDraft"
+                    @input="scheduleEditorTextUpdate()"
+                    rows="8"
+                    placeholder="Update the selected copy"
+                  ></textarea>
+                </label>
+
+                <section class="issue issue-info" x-show="editorSelectionTextIsComputed" x-cloak>
+                  <strong>Computed only</strong>
+                  <span x-text="editorSelectionText ? editorSelectionText.text || editorSelectionText.draft : ''"></span>
+                </section>
+
+                <div class="button-row" x-show="!editorSelectionTextIsComputed" x-cloak>
+                  <button type="button" class="button button-secondary" @click="applyEditorText()">Apply Now</button>
+                  <button type="button" class="button button-danger" @click="deleteSelectedText()">Delete</button>
+                  <button type="button" class="button button-ghost" @click="clearEditorSelection()">Clear</button>
+                </div>
+
+                <div class="button-row" x-show="editorSelectionTextIsComputed" x-cloak>
+                  <button type="button" class="button button-danger" @click="deleteSelectedText()">Delete</button>
+                  <button type="button" class="button button-ghost" @click="clearEditorSelection()">Clear</button>
+                </div>
+              </section>
+
+              <section class="editor-sidebar__section editor-sidebar__section--compact" x-show="editorSelectionMove" x-cloak>
+                <p class="mini-label" x-text="editorSelectionMoveTitle"></p>
+                <h3 x-text="editorSelectionMove ? editorSelectionMove.label : 'Selected element'"></h3>
+                <p class="muted-copy" x-text="editorSelectionMoveHelper"></p>
+
+                <div class="editor-move-grid">
+                  <button
+                    type="button"
+                    class="button button-secondary"
+                    :disabled="!editorSelectionMove || !editorSelectionMove.canMoveUp"
+                    @click="moveSelectedElement('up')"
+                  >
+                    Move Up
+                  </button>
+                  <button
+                    type="button"
+                    class="button button-secondary"
+                    :disabled="!editorSelectionMove || !editorSelectionMove.canMoveDown"
+                    @click="moveSelectedElement('down')"
+                  >
+                    Move Down
+                  </button>
+                </div>
+
+                <div class="button-row">
+                  <button type="button" class="button button-danger" @click="deleteSelectedElement()">Delete</button>
+                  <button type="button" class="button button-ghost" @click="clearEditorSelection()">Clear Selection</button>
+                </div>
+              </section>
+            </aside>
+          </div>
         </section>
 
         <section class="panel wizard-nav">

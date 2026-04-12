@@ -281,8 +281,8 @@ const STUDIO_STEPS = [
   },
   {
     id: "preview",
-    label: "Preview",
-    summary: "Inspect the sandboxed runtime and publish or export the draft."
+    label: "Edit",
+    summary: "Edit the sandboxed runtime, then publish or export the draft."
   }
 ];
 
@@ -497,6 +497,652 @@ const LUCIDE_BOOTSTRAP = `
   document.addEventListener("alpine:initialized", scheduleRender);
 })();
 `;
+
+const PREVIEW_EDITOR_CSS = `
+body.ll-preview-editor {
+  position: relative;
+}
+
+.ll-editor-hover-text,
+.ll-editor-selected-text,
+.ll-editor-hover-container,
+.ll-editor-selected-container {
+  position: relative;
+  transition: outline-color 140ms ease, box-shadow 140ms ease;
+}
+
+.ll-editor-hover-text {
+  outline: 2px dashed rgba(41, 98, 255, 0.42);
+  outline-offset: 4px;
+}
+
+.ll-editor-selected-text {
+  outline: 2px solid rgba(41, 98, 255, 0.82);
+  outline-offset: 4px;
+  box-shadow: 0 0 0 5px rgba(41, 98, 255, 0.12);
+}
+
+.ll-editor-hover-container {
+  outline: 2px dashed rgba(191, 91, 49, 0.4);
+  outline-offset: 6px;
+}
+
+.ll-editor-selected-container {
+  outline: 2px solid rgba(191, 91, 49, 0.78);
+  outline-offset: 6px;
+  box-shadow: 0 0 0 6px rgba(191, 91, 49, 0.12);
+}
+`;
+
+function buildPreviewEditorRuntime() {
+  return `
+(() => {
+  const rootSelector = "[${APP_MARKER}]";
+  const containerSelector = "header, nav, section, article, aside, form, fieldset, table, dialog, footer, .hero, .spotlight, .panel, .card, .frame, .empty-state, .split, .card-grid";
+  const movableEntitySelector = "li, button, a, label, input, select, textarea, .pill, .status-pill";
+  const movableEntityParentSelector = "ul, ol, nav, form, fieldset, .toolbar, .actions, .cluster, .split, .card-grid";
+  const textTags = new Set(["h1", "h2", "h3", "h4", "h5", "h6", "p", "span", "strong", "em", "small", "label", "legend", "summary", "li", "td", "th", "blockquote", "button", "a"]);
+  const prefersTouch = window.matchMedia ? window.matchMedia("(hover: none), (pointer: coarse)").matches : false;
+  const state = {
+    root: null,
+    hoverText: null,
+    hoverContainer: null,
+    selected: null,
+    lastPointerType: prefersTouch ? "touch" : "mouse"
+  };
+
+  const post = (type, payload = {}) => {
+    window.parent.postMessage({ type, ...payload }, "*");
+  };
+
+  const isOverlayElement = (node) => {
+    return Boolean(node && typeof node.closest === "function" && node.closest("[data-llastro-editor-overlay]"));
+  };
+
+  const isInsideRoot = (node) => {
+    return Boolean(state.root && node && state.root.contains(node));
+  };
+
+  const getBindableExpression = (node) => {
+    if (!node || node.nodeType !== Node.ELEMENT_NODE) {
+      return "";
+    }
+
+    return (
+      node.getAttribute("x-text") ||
+      node.getAttribute("x-html") ||
+      node.getAttribute(":text") ||
+      node.getAttribute(":html") ||
+      ""
+    ).trim();
+  };
+
+  const buildInterpolatedParts = (node) => {
+    const parts = [];
+    for (const child of node.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        parts.push({ type: "text", value: child.textContent || "" });
+        continue;
+      }
+
+      if (child.nodeType !== Node.ELEMENT_NODE) {
+        return null;
+      }
+
+      if (child.matches("br")) {
+        parts.push({ type: "text", value: "\\n" });
+        continue;
+      }
+
+      const expression = getBindableExpression(child);
+      if (!expression) {
+        return null;
+      }
+
+      parts.push({ type: "binding", expression });
+    }
+
+    return parts;
+  };
+
+  const analyzeTextTarget = (node) => {
+    if (!node || !isInsideRoot(node) || isOverlayElement(node)) {
+      return false;
+    }
+
+    const tagName = node.tagName ? node.tagName.toLowerCase() : "";
+    if (!textTags.has(tagName) || node.matches("[data-lucide], template")) {
+      return null;
+    }
+
+    const computedExpression = getBindableExpression(node);
+    if (computedExpression) {
+      const renderedText = node.textContent.trim();
+      return {
+        path: getElementPath(node),
+        tagName,
+        label: renderedText || ("{" + computedExpression + "}"),
+        text: renderedText,
+        draft: "{" + computedExpression + "}",
+        mode: "computed",
+        expression: computedExpression,
+        helperText: "This text is computed from {" + computedExpression + "} and can't be edited directly here."
+      };
+    }
+
+    const childElements = [...node.children].filter((child) => !child.matches("br"));
+    if (childElements.length === 0) {
+      const text = node.textContent.trim();
+      if (!text) {
+        return null;
+      }
+
+      return {
+        path: getElementPath(node),
+        tagName,
+        label: text.length > 64 ? text.slice(0, 61) + "..." : text,
+        text,
+        draft: text,
+        mode: "plain",
+        helperText: "Update the selected copy."
+      };
+    }
+
+    const parts = buildInterpolatedParts(node);
+    if (!parts) {
+      return null;
+    }
+
+    const template = parts
+      .map((part) => part.type === "binding" ? ("{" + part.expression + "}") : part.value)
+      .join("");
+    const bindingExpressions = parts
+      .filter((part) => part.type === "binding")
+      .map((part) => part.expression);
+    const staticText = parts
+      .filter((part) => part.type === "text")
+      .map((part) => part.value)
+      .join("")
+      .trim();
+    const renderedText = node.textContent.trim();
+
+    if (!bindingExpressions.length) {
+      return null;
+    }
+
+    if (!staticText) {
+      return {
+        path: getElementPath(node),
+        tagName,
+        label: renderedText || template,
+        text: renderedText,
+        draft: template,
+        mode: "computed",
+        expression: bindingExpressions.join(" "),
+        helperText: "This text is fully computed from " + bindingExpressions.map((value) => "{" + value + "}").join(", ") + " and can't be edited directly here."
+      };
+    }
+
+    return {
+      path: getElementPath(node),
+      tagName,
+      label: renderedText.length > 64 ? renderedText.slice(0, 61) + "..." : renderedText,
+      text: renderedText,
+      draft: template,
+      mode: "interpolated",
+      expressions: bindingExpressions,
+      helperText: "Edit the text and reorder dynamic placeholders using {expression} syntax."
+    };
+  };
+
+  const isEditableTextTarget = (node) => {
+    return Boolean(analyzeTextTarget(node));
+  };
+
+  const isContainerTarget = (node) => {
+    if (!node || !isInsideRoot(node) || isOverlayElement(node) || node === state.root) {
+      return false;
+    }
+
+    if (!node.matches(containerSelector)) {
+      return false;
+    }
+
+    const rect = node.getBoundingClientRect();
+    return rect.width > 140 && rect.height > 64;
+  };
+
+  const isMovableEntityTarget = (node) => {
+    if (!node || !isInsideRoot(node) || isOverlayElement(node) || node === state.root || !node.parentElement) {
+      return false;
+    }
+
+    if (!node.matches(movableEntitySelector) || !node.parentElement.matches(movableEntityParentSelector)) {
+      return false;
+    }
+
+    return node.parentElement.children.length > 0;
+  };
+
+  const findTextTarget = (start) => {
+    let node = start;
+    while (node && node !== document.body) {
+      if (isEditableTextTarget(node)) {
+        return node;
+      }
+      if (node === state.root) {
+        return null;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  };
+
+  const findMoveTarget = (start) => {
+    let node = start;
+    while (node && node !== document.body) {
+      if (isMovableEntityTarget(node)) {
+        return node;
+      }
+
+      if (isContainerTarget(node)) {
+        return node;
+      }
+      if (node === state.root) {
+        return null;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  };
+
+  const getElementPath = (node) => {
+    const segments = [];
+    let current = node;
+    while (current && current !== state.root) {
+      const parent = current.parentElement;
+      if (!parent) {
+        break;
+      }
+      segments.unshift(Array.prototype.indexOf.call(parent.children, current));
+      current = parent;
+    }
+    return segments.join(".");
+  };
+
+  const getElementByPath = (path) => {
+    if (!state.root) {
+      return null;
+    }
+
+    if (!path) {
+      return state.root;
+    }
+
+    const segments = String(path)
+      .split(".")
+      .filter(Boolean)
+      .map((value) => Number.parseInt(value, 10));
+
+    let current = state.root;
+    for (const index of segments) {
+      current = current?.children?.[index] || null;
+      if (!current) {
+        return null;
+      }
+    }
+
+    return current;
+  };
+
+  const describeMoveTarget = (node) => {
+    const parentTagName = node.parentElement?.tagName?.toLowerCase() || "parent";
+
+    if (isMovableEntityTarget(node)) {
+      const text = node.textContent.trim();
+      return {
+        kind: "entity",
+        path: getElementPath(node),
+        tagName: node.tagName.toLowerCase(),
+        label: text ? (node.tagName.toLowerCase() + " · " + text.slice(0, 48)) : node.tagName.toLowerCase(),
+        canMoveUp: Boolean(node.previousElementSibling),
+        canMoveDown: Boolean(node.nextElementSibling),
+        helperText: "Reorder this item within its " + parentTagName + " parent."
+      };
+    }
+
+    const classTokens = [...node.classList].filter((token) => !token.startsWith("ll-editor-"));
+    const classSuffix = classTokens.length ? " ." + classTokens.slice(0, 2).join(".") : "";
+    return {
+      kind: "container",
+      path: getElementPath(node),
+      tagName: node.tagName.toLowerCase(),
+      label: node.tagName.toLowerCase() + classSuffix,
+      canMoveUp: Boolean(node.previousElementSibling),
+      canMoveDown: Boolean(node.nextElementSibling),
+      helperText: "Move this block within its current parent."
+    };
+  };
+
+  const buildSelection = (textNode, moveNode) => {
+    const selection = {
+      text: analyzeTextTarget(textNode),
+      move: (isMovableEntityTarget(moveNode) || isContainerTarget(moveNode)) ? describeMoveTarget(moveNode) : null
+    };
+
+    return selection.text || selection.move ? selection : null;
+  };
+
+  const clearVisualState = () => {
+    if (!state.root) {
+      return;
+    }
+
+    state.root.querySelectorAll(".ll-editor-hover-text, .ll-editor-selected-text, .ll-editor-hover-container, .ll-editor-selected-container").forEach((node) => {
+      node.classList.remove("ll-editor-hover-text", "ll-editor-selected-text", "ll-editor-hover-container", "ll-editor-selected-container");
+    });
+  };
+
+  const updateVisualState = () => {
+    clearVisualState();
+
+    if (state.hoverText) {
+      state.hoverText.classList.add("ll-editor-hover-text");
+    }
+
+    if (state.hoverContainer) {
+      state.hoverContainer.classList.add("ll-editor-hover-container");
+    }
+
+    if (state.selected?.text?.path) {
+      const selectedTextNode = getElementByPath(state.selected.text.path);
+      if (selectedTextNode) {
+        selectedTextNode.classList.add("ll-editor-selected-text");
+      }
+    }
+
+    if (state.selected?.move?.path) {
+      const selectedContainerNode = getElementByPath(state.selected.move.path);
+      if (selectedContainerNode) {
+        selectedContainerNode.classList.add("ll-editor-selected-container");
+      }
+    }
+  };
+
+  const refreshOverlay = () => {
+    updateVisualState();
+  };
+
+  const setHoverTargets = (textNode, containerNode) => {
+    state.hoverText = textNode || null;
+    state.hoverContainer = textNode ? null : containerNode || null;
+    refreshOverlay();
+  };
+
+  const clearSelection = () => {
+    state.selected = null;
+    refreshOverlay();
+    post("llastro-editor-selection", { selection: null });
+  };
+
+  const selectTargets = (textNode, containerNode) => {
+    const selection = buildSelection(textNode, containerNode);
+    if (!selection) {
+      clearSelection();
+      return;
+    }
+
+    state.selected = selection;
+    refreshOverlay();
+    post("llastro-editor-selection", { selection: state.selected });
+  };
+
+  const selectBestTarget = (target) => {
+    const textNode = findTextTarget(target);
+    if (textNode) {
+      selectTargets(textNode, findMoveTarget(textNode));
+      return true;
+    }
+
+    const containerNode = findMoveTarget(target);
+    if (containerNode) {
+      selectTargets(null, containerNode);
+      return true;
+    }
+
+    return false;
+  };
+
+  const serializeHtml = () => {
+    const clone = state.root.cloneNode(true);
+    [clone, ...clone.querySelectorAll("*")].forEach((node) => {
+      [...node.classList]
+        .filter((token) => token.startsWith("ll-editor-"))
+        .forEach((token) => node.classList.remove(token));
+    });
+    return clone.outerHTML.trim();
+  };
+
+  const emitChange = (selectedNode = null) => {
+    const selection = selectedNode && state.selected
+      ? buildSelection(
+          state.selected.text?.path ? getElementByPath(state.selected.text.path) : null,
+          state.selected.move?.path ? getElementByPath(state.selected.move.path) : null
+        )
+      : state.selected;
+
+    post("llastro-editor-change", {
+      html: serializeHtml(),
+      selection
+    });
+  };
+
+  const moveElement = (path, direction) => {
+    const node = getElementByPath(path);
+    if (!(isMovableEntityTarget(node) || isContainerTarget(node)) || !node.parentElement) {
+      return;
+    }
+
+    const selectedTextNode = state.selected?.text?.path ? getElementByPath(state.selected.text.path) : null;
+
+    if (direction === "up" && node.previousElementSibling) {
+      node.parentElement.insertBefore(node, node.previousElementSibling);
+    } else if (direction === "down" && node.nextElementSibling) {
+      node.parentElement.insertBefore(node.nextElementSibling, node);
+    } else {
+      return;
+    }
+
+    state.selected = buildSelection(selectedTextNode, node);
+    setHoverTargets(selectedTextNode, node);
+    emitChange();
+  };
+
+  const applyText = (path, nextText) => {
+    const node = getElementByPath(path);
+    const textTarget = analyzeTextTarget(node);
+    if (!textTarget || textTarget.mode === "computed") {
+      return;
+    }
+
+    const containerNode = state.selected?.move?.path ? getElementByPath(state.selected.move.path) : findMoveTarget(node);
+    if (textTarget.mode === "interpolated") {
+      const prototypeMap = new Map();
+      [...node.childNodes].forEach((child) => {
+        const expression = getBindableExpression(child);
+        if (expression && !prototypeMap.has(expression)) {
+          prototypeMap.set(expression, child.cloneNode(true));
+        }
+      });
+
+      const fragment = document.createDocumentFragment();
+      const normalizedText = String(nextText).replace(/\\r\\n?/g, "\\n");
+      const pattern = /\{([^{}]+)\}/g;
+      let match;
+      let lastIndex = 0;
+
+      const appendText = (value) => {
+        if (!value) {
+          return;
+        }
+
+        const segments = value.split("\\n");
+        segments.forEach((segment, index) => {
+          if (segment) {
+            fragment.append(document.createTextNode(segment));
+          }
+          if (index < segments.length - 1) {
+            fragment.append(document.createElement("br"));
+          }
+        });
+      };
+
+      while ((match = pattern.exec(normalizedText))) {
+        appendText(normalizedText.slice(lastIndex, match.index));
+        const expression = match[1].trim();
+        if (expression) {
+          const prototype = prototypeMap.get(expression);
+          const bindingNode = prototype ? prototype.cloneNode(true) : document.createElement("span");
+          if (!prototype) {
+            bindingNode.setAttribute("x-text", expression);
+          }
+          fragment.append(bindingNode);
+        } else {
+          appendText(match[0]);
+        }
+        lastIndex = match.index + match[0].length;
+      }
+
+      appendText(normalizedText.slice(lastIndex));
+      node.replaceChildren(fragment);
+    } else {
+      node.textContent = nextText;
+    }
+
+    state.selected = buildSelection(node, containerNode);
+    setHoverTargets(node, containerNode);
+    emitChange();
+  };
+
+  const deleteElement = (path) => {
+    const node = getElementByPath(path);
+    if (!node || node === state.root || !isInsideRoot(node)) {
+      return;
+    }
+
+    const fallbackTarget = node.previousElementSibling || node.nextElementSibling || node.parentElement;
+    node.remove();
+
+    const nextTextNode = fallbackTarget && fallbackTarget !== state.root ? findTextTarget(fallbackTarget) : null;
+    const nextMoveNode = fallbackTarget && fallbackTarget !== state.root ? findMoveTarget(fallbackTarget) : null;
+
+    state.selected = buildSelection(nextTextNode, nextMoveNode);
+    setHoverTargets(nextTextNode, nextMoveNode);
+    emitChange();
+  };
+
+  const handlePoint = (target) => {
+    if (isOverlayElement(target)) {
+      return;
+    }
+
+    if (!target || !isInsideRoot(target)) {
+      setHoverTargets(null, null);
+      return;
+    }
+
+    const textNode = findTextTarget(target);
+    const containerNode = textNode ? null : findMoveTarget(target);
+    setHoverTargets(textNode, containerNode);
+  };
+
+  const bindEvents = () => {
+    document.addEventListener("pointermove", (event) => {
+      if (event.pointerType === "touch") {
+        return;
+      }
+      state.lastPointerType = event.pointerType || "mouse";
+      handlePoint(document.elementFromPoint(event.clientX, event.clientY));
+    }, true);
+
+    document.addEventListener("pointerdown", (event) => {
+      state.lastPointerType = event.pointerType || state.lastPointerType || "mouse";
+    }, true);
+
+    document.addEventListener("click", (event) => {
+      if (isOverlayElement(event.target)) {
+        return;
+      }
+
+      if (!isInsideRoot(event.target)) {
+        clearSelection();
+        setHoverTargets(null, null);
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      handlePoint(event.target);
+      selectBestTarget(event.target);
+    }, true);
+
+    document.addEventListener("submit", (event) => {
+      if (!isInsideRoot(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+    }, true);
+
+    document.addEventListener("pointerleave", () => {
+      if (state.selected || prefersTouch || state.lastPointerType === "touch") {
+        return;
+      }
+      setHoverTargets(null, null);
+    }, true);
+
+    window.addEventListener("scroll", refreshOverlay, { passive: true });
+    window.addEventListener("resize", refreshOverlay);
+
+    window.addEventListener("message", (event) => {
+      const data = event.data;
+      if (!data || data.type !== "llastro-editor-command") {
+        return;
+      }
+
+      if (data.command === "apply-text") {
+        applyText(data.path, typeof data.text === "string" ? data.text : "");
+      } else if (data.command === "move-element") {
+        moveElement(data.path, data.direction);
+      } else if (data.command === "delete-element") {
+        deleteElement(data.path);
+      } else if (data.command === "clear-selection") {
+        clearSelection();
+      }
+    });
+  };
+
+  const init = () => {
+    state.root = document.querySelector(rootSelector);
+    if (!state.root) {
+      return;
+    }
+
+    document.body.classList.add("ll-preview-editor");
+    bindEvents();
+    refreshOverlay();
+    post("llastro-editor-ready");
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
+  } else {
+    init();
+  }
+})();
+`.trim();
+}
 
 function normalizeThemeId(themeId) {
   if (!themeId) {
@@ -900,6 +1546,10 @@ function createStudioApp() {
     skipStudioResetOnNextEntry: false,
     currentEditingId: "",
     currentEditingSourceTitle: "",
+    editorEnabled: false,
+    editorSelection: null,
+    editorTextDraft: "",
+    editorTextTimer: 0,
     statusMessage: "Loading framework and icon runtime...",
 
     get currentTheme() {
@@ -912,6 +1562,34 @@ function createStudioApp() {
 
     get currentScheme() {
       return schemeById(this.selectedTheme, this.selectedScheme);
+    },
+
+    get editorSelectionText() {
+      return this.editorSelection?.text || null;
+    },
+
+    get editorSelectionMove() {
+      return this.editorSelection?.move || null;
+    },
+
+    get hasEditorSelection() {
+      return Boolean(this.editorSelectionText || this.editorSelectionMove);
+    },
+
+    get editorSelectionTextIsComputed() {
+      return this.editorSelectionText?.mode === "computed";
+    },
+
+    get editorSelectionTextHelper() {
+      return this.editorSelectionText?.helperText || "";
+    },
+
+    get editorSelectionMoveTitle() {
+      return this.editorSelectionMove?.kind === "entity" ? "Entity order" : "Layout shifting";
+    },
+
+    get editorSelectionMoveHelper() {
+      return this.editorSelectionMove?.helperText || "";
     },
 
     get referenceCoverageLabel() {
@@ -1345,6 +2023,7 @@ function createStudioApp() {
       await this.loadLucideRuntime();
       await this.loadLibrary();
       this.restoreState();
+      window.addEventListener("message", (event) => this.handlePreviewEditorMessage(event));
       window.addEventListener("hashchange", () => this.syncRouteFromLocation());
       window.addEventListener("popstate", () => this.syncRouteFromLocation());
 
@@ -1355,6 +2034,163 @@ function createStudioApp() {
       }
 
       this.syncRouteFromLocation();
+    },
+
+    handlePreviewEditorMessage(event) {
+      const previewWindow = this.$refs.previewFrame?.contentWindow;
+      if (previewWindow && event.source !== previewWindow) {
+        return;
+      }
+
+      const data = event.data;
+      if (!data || typeof data.type !== "string" || !data.type.startsWith("llastro-editor-")) {
+        return;
+      }
+
+      if (!this.editorEnabled) {
+        return;
+      }
+
+      if (data.type === "llastro-editor-selection") {
+        this.editorSelection = data.selection || null;
+        this.editorTextDraft = data.selection?.text?.draft || "";
+        return;
+      }
+
+      if (data.type === "llastro-editor-change" && typeof data.html === "string") {
+        this.normalizedAppHtml = data.html.trim();
+        this.rawResponse = this.normalizedAppHtml;
+        const meta = extractAppMetadata(
+          this.normalizedAppHtml,
+          this.importedTheme || this.selectedTheme,
+          this.importedScheme || this.selectedScheme
+        );
+        this.importedTheme = meta.themeId;
+        this.importedScheme = meta.schemeId;
+        this.importedAppTitle = meta.title;
+        if (!this.appName.trim()) {
+          this.appName = meta.title;
+        }
+        this.editorSelection = data.selection || this.editorSelection;
+        this.editorTextDraft = this.editorSelection?.text?.draft || "";
+        this.statusMessage = "Draft updated in edit mode.";
+        this.saveState();
+      }
+    },
+
+    resetEditorSelection() {
+      if (this.editorTextTimer) {
+        clearTimeout(this.editorTextTimer);
+        this.editorTextTimer = 0;
+      }
+
+      this.editorSelection = null;
+      this.editorTextDraft = "";
+    },
+
+    renderStudioPreview({ preserveSelection = false } = {}) {
+      if (!preserveSelection) {
+        this.resetEditorSelection();
+      }
+
+      const appHtml = this.normalizedAppHtml || this.wrapWithRoot("");
+      this.renderPreview(
+        this.buildPreviewDocument(appHtml, this.draftTitle, { editorEnabled: this.editorEnabled })
+      );
+    },
+
+    toggleEditorMode() {
+      this.editorEnabled = !this.editorEnabled;
+      this.renderStudioPreview();
+      this.statusMessage = this.editorEnabled
+        ? "Preview editor enabled."
+        : "Preview editor disabled.";
+      this.saveState();
+    },
+
+    sendPreviewEditorCommand(command, payload = {}) {
+      if (!this.editorEnabled) {
+        return;
+      }
+
+      const previewWindow = this.$refs.previewFrame?.contentWindow;
+      if (!previewWindow) {
+        return;
+      }
+
+      previewWindow.postMessage({ type: "llastro-editor-command", command, ...payload }, "*");
+    },
+
+    scheduleEditorTextUpdate() {
+      if (!this.editorSelectionText) {
+        return;
+      }
+
+      if (this.editorTextTimer) {
+        clearTimeout(this.editorTextTimer);
+      }
+
+      this.editorTextTimer = window.setTimeout(() => {
+        this.editorTextTimer = 0;
+        this.applyEditorText();
+      }, 140);
+    },
+
+    applyEditorText() {
+      if (!this.editorSelectionText) {
+        return;
+      }
+
+      this.sendPreviewEditorCommand("apply-text", {
+        path: this.editorSelectionText.path,
+        text: this.editorTextDraft
+      });
+    },
+
+    moveSelectedElement(direction) {
+      if (!this.editorSelectionMove) {
+        return;
+      }
+
+      this.sendPreviewEditorCommand("move-element", {
+        path: this.editorSelectionMove.path,
+        direction
+      });
+    },
+
+    deleteSelectedText() {
+      if (!this.editorSelectionText) {
+        return;
+      }
+
+      const confirmed = window.confirm(`Delete "${this.editorSelectionText.label}"?`);
+      if (!confirmed) {
+        return;
+      }
+
+      this.sendPreviewEditorCommand("delete-element", {
+        path: this.editorSelectionText.path
+      });
+    },
+
+    deleteSelectedElement() {
+      if (!this.editorSelectionMove) {
+        return;
+      }
+
+      const confirmed = window.confirm(`Delete "${this.editorSelectionMove.label}"?`);
+      if (!confirmed) {
+        return;
+      }
+
+      this.sendPreviewEditorCommand("delete-element", {
+        path: this.editorSelectionMove.path
+      });
+    },
+
+    clearEditorSelection() {
+      this.resetEditorSelection();
+      this.sendPreviewEditorCommand("clear-selection");
     },
 
     syncRouteFromLocation() {
@@ -1532,7 +2368,7 @@ function createStudioApp() {
       this.importedAppTitle = "Untitled Draft";
       this.currentEditingId = "";
       this.currentEditingSourceTitle = "";
-      this.renderPreview(this.buildPreviewDocument(this.wrapWithRoot(""), "llastro draft"));
+      this.renderStudioPreview();
       this.statusMessage = "Studio ready.";
       this.saveState();
     },
@@ -1551,7 +2387,7 @@ function createStudioApp() {
       this.importedAppTitle = "Untitled Draft";
       this.currentEditingId = "";
       this.currentEditingSourceTitle = "";
-      this.renderPreview(this.buildPreviewDocument(this.wrapWithRoot(""), "llastro draft"));
+      this.renderStudioPreview();
       this.statusMessage = "Draft cleared.";
       this.saveState();
     },
@@ -1588,7 +2424,7 @@ function createStudioApp() {
         this.importedTheme || this.selectedTheme,
         this.importedScheme || this.selectedScheme
       ).title;
-      this.renderPreview(this.buildPreviewDocument(this.normalizedAppHtml, this.draftTitle));
+      this.renderStudioPreview();
     },
 
     applySelectedThemeToDraft() {
@@ -1623,6 +2459,7 @@ function createStudioApp() {
 
     importResponse(silent = false) {
       const raw = extractCodeBlock(this.rawResponse);
+      this.resetEditorSelection();
 
       if (!raw) {
         this.issues = [{ level: "error", text: "Paste a code block or HTML fragment before importing." }];
@@ -1778,7 +2615,8 @@ function createStudioApp() {
       return `<main ${APP_MARKER} ${THEME_MARKER}="${themeId}" ${SCHEME_MARKER}="${schemeId}" class="app-shell stack">${innerHtml || fallback}</main>`;
     },
 
-    buildPreviewDocument(appHtml, title = "llastro preview") {
+    buildPreviewDocument(appHtml, title = "llastro preview", options = {}) {
+      const { editorEnabled = false } = options;
       return [
         "<!doctype html>",
         "<html lang=\"en\">",
@@ -1787,15 +2625,17 @@ function createStudioApp() {
         "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
         `  <title>${escapeHtml(title)}</title>`,
         `  <style>${this.frameworkCss}</style>`,
+        editorEnabled ? `  <style>${PREVIEW_EDITOR_CSS}</style>` : "",
         "</head>",
         "<body>",
         appHtml,
         `  <script>${escapeInlineScript(this.alpineRuntime || MINIMAL_ALPINE_RUNTIME)}<\/script>`,
         `  <script>${escapeInlineScript(this.lucideRuntime || MINIMAL_LUCIDE_RUNTIME)}<\/script>`,
         `  <script>${escapeInlineScript(LUCIDE_BOOTSTRAP)}<\/script>`,
+        editorEnabled ? `  <script>${escapeInlineScript(buildPreviewEditorRuntime())}<\/script>` : "",
         "</body>",
         "</html>"
-      ].join("\n");
+      ].filter(Boolean).join("\n");
     },
 
     renderPreview(documentHtml, refName = "previewFrame") {
@@ -2063,7 +2903,9 @@ function createStudioApp() {
         rawResponse: this.rawResponse,
         currentEditingId: this.currentEditingId,
         currentEditingSourceTitle: this.currentEditingSourceTitle,
-        activeLibraryId: this.activeLibraryId
+        activeLibraryId: this.activeLibraryId,
+        editorEnabled: this.editorEnabled,
+        editorEnabled: this.editorEnabled
       };
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -2107,6 +2949,12 @@ function createStudioApp() {
         }
         if (typeof payload.activeLibraryId === "string") {
           this.activeLibraryId = payload.activeLibraryId;
+        }
+        if (typeof payload.editorEnabled === "boolean") {
+          this.editorEnabled = payload.editorEnabled;
+        }
+        if (typeof payload.editorEnabled === "boolean") {
+          this.editorEnabled = payload.editorEnabled;
         }
       } catch (error) {
         console.error(error);
