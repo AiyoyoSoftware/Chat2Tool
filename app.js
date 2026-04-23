@@ -3128,13 +3128,65 @@ function createStudioApp() {
       await this.copyText(this.getStandaloneDocument(), "Standalone HTML copied.");
     },
 
-    async copyText(text, successMessage) {
+    fallbackCopyText(text) {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.setAttribute("aria-hidden", "true");
+      textarea.style.position = "fixed";
+      textarea.style.top = "0";
+      textarea.style.left = "0";
+      textarea.style.width = "1px";
+      textarea.style.height = "1px";
+      textarea.style.padding = "0";
+      textarea.style.border = "0";
+      textarea.style.opacity = "0";
+      textarea.style.fontSize = "16px";
+
+      document.body.appendChild(textarea);
+
+      const selection = document.getSelection();
+      const previousRange = selection && selection.rangeCount ? selection.getRangeAt(0) : null;
+
+      textarea.focus();
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+
+      let copied = false;
+
       try {
-        await navigator.clipboard.writeText(text);
-        this.statusMessage = successMessage;
+        copied = document.execCommand("copy");
       } catch (error) {
         console.error(error);
-        this.statusMessage = "Clipboard access failed in this browser.";
+      }
+
+      document.body.removeChild(textarea);
+
+      if (selection) {
+        selection.removeAllRanges();
+        if (previousRange) {
+          selection.addRange(previousRange);
+        }
+      }
+
+      return copied;
+    },
+
+    async copyText(text, successMessage) {
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+          this.statusMessage = successMessage;
+          return;
+        }
+      } catch (error) {
+        console.error(error);
+      }
+
+      if (this.fallbackCopyText(text)) {
+        this.statusMessage = successMessage;
+      } else {
+        this.statusMessage = "Copy failed in this browser. Press and hold to copy manually.";
       }
     },
 
