@@ -15,6 +15,30 @@ const MIME_TYPES = {
   ".json": "application/json; charset=utf-8"
 };
 
+function normalizeTags(value) {
+  const rawTags = Array.isArray(value) ? value : String(value || "").split(/[,#\n]/);
+  const seen = new Set();
+  const tags = [];
+
+  rawTags.forEach((tag) => {
+    const normalized = String(tag || "")
+      .toLowerCase()
+      .replace(/&/g, " and ")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 28);
+
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+
+    seen.add(normalized);
+    tags.push(normalized);
+  });
+
+  return tags.slice(0, 8);
+}
+
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, {
     "Cache-Control": "no-store",
@@ -46,6 +70,7 @@ function sanitizeLibrary(library) {
         id: entry.id,
         title: typeof entry.title === "string" && entry.title.trim() ? entry.title.trim() : "Untitled App",
         summary: typeof entry.summary === "string" ? entry.summary.trim().slice(0, 180) : "",
+        tags: normalizeTags(entry.tags),
         themeId: typeof entry.themeId === "string" ? entry.themeId : "",
         schemeId: typeof entry.schemeId === "string" ? entry.schemeId : "",
         source: typeof entry.source === "string" && entry.source.trim() ? entry.source : entry.html,

@@ -6,7 +6,6 @@ const LIBRARY_KEY = "llastro-library-v1";
 const LIBRARY_API_PATH = "/api/library";
 const ALPINE_RUNTIME_PATH = "./vendor/alpinejs.min.js";
 const LUCIDE_RUNTIME_PATH = "./vendor/lucide.min.js";
-
 const THEMES = [
   {
     id: "flat",
@@ -220,6 +219,183 @@ const LEGACY_THEME_ALIASES = {
   grove: "neumorph",
   halo: "neumorph",
   nocturne: "liquid"
+};
+
+const HOST_SCHEME_TOKENS = {
+  flat: {
+    metro: {
+      pageBg: "#eef5ff",
+      pageBgDeep: "#dcecff",
+      panelStrong: "#edf4ff",
+      panelBorder: "rgba(25, 118, 210, 0.16)",
+      accent: "#1976d2",
+      accentDeep: "#0e4f97",
+      accentCool: "#1976d2"
+    },
+    sunrise: {
+      pageBg: "#fff0d8",
+      pageBgDeep: "#ffcdaa",
+      panelStrong: "#fff3df",
+      panelBorder: "rgba(220, 95, 34, 0.2)",
+      accent: "#e45d2f",
+      accentDeep: "#8d3519",
+      accentCool: "#b85320"
+    },
+    mint: {
+      pageBg: "#dffbf5",
+      pageBgDeep: "#b5eadf",
+      panelStrong: "#e9fbf6",
+      panelBorder: "rgba(22, 139, 119, 0.18)",
+      accent: "#168b77",
+      accentDeep: "#0d584b",
+      accentCool: "#168b77"
+    }
+  },
+  material2: {
+    indigo: {
+      pageBg: "#eff4ff",
+      pageBgDeep: "#dde8ff",
+      panelStrong: "#e7efff",
+      panelBorder: "rgba(41, 98, 255, 0.14)",
+      accent: "#2962ff",
+      accentDeep: "#1744c7",
+      accentCool: "#2962ff"
+    },
+    teal: {
+      pageBg: "#e3f7f8",
+      pageBgDeep: "#ccebef",
+      panelStrong: "#e8f8fa",
+      panelBorder: "rgba(0, 137, 154, 0.16)",
+      accent: "#00899a",
+      accentDeep: "#075968",
+      accentCool: "#00899a"
+    },
+    berry: {
+      pageBg: "#ffeaf3",
+      pageBgDeep: "#f7d5e6",
+      panelStrong: "#fff0f7",
+      panelBorder: "rgba(190, 55, 118, 0.16)",
+      accent: "#be3776",
+      accentDeep: "#842150",
+      accentCool: "#be3776"
+    }
+  },
+  neumorph: {
+    linen: {
+      pageBg: "#f7f0e6",
+      pageBgDeep: "#ebddc9",
+      panelStrong: "#f4e5d1",
+      panelBorder: "rgba(123, 89, 54, 0.2)",
+      accent: "#b35b33",
+      accentDeep: "#844221",
+      accentCool: "#8a694b"
+    },
+    mist: {
+      pageBg: "#ecf2fa",
+      pageBgDeep: "#d9e2ef",
+      panelStrong: "#e5edf8",
+      panelBorder: "rgba(87, 113, 151, 0.2)",
+      accent: "#5c78a8",
+      accentDeep: "#384d73",
+      accentCool: "#5c78a8"
+    },
+    sage: {
+      pageBg: "#ebf4ec",
+      pageBgDeep: "#d2e2d5",
+      panelStrong: "#deebdf",
+      panelBorder: "rgba(79, 124, 87, 0.2)",
+      accent: "#5f8f67",
+      accentDeep: "#3d6344",
+      accentCool: "#5f8f67"
+    }
+  },
+  glass: {
+    aurora: {
+      pageBg: "#c7ddff",
+      pageBgDeep: "#f0b6ff",
+      panelStrong: "rgba(255, 255, 255, 0.34)",
+      panelBorder: "rgba(255, 255, 255, 0.38)",
+      accent: "#3f73ff",
+      accentDeep: "#2953bd",
+      accentCool: "#3f73ff"
+    },
+    sunset: {
+      pageBg: "#ffd2a8",
+      pageBgDeep: "#ffb2d7",
+      panelStrong: "rgba(255, 255, 255, 0.36)",
+      panelBorder: "rgba(255, 255, 255, 0.42)",
+      accent: "#d95383",
+      accentDeep: "#9c315d",
+      accentCool: "#d95383"
+    },
+    lagoon: {
+      pageBg: "#b8f5ff",
+      pageBgDeep: "#b7d5ff",
+      panelStrong: "rgba(255, 255, 255, 0.34)",
+      panelBorder: "rgba(255, 255, 255, 0.4)",
+      accent: "#178eb8",
+      accentDeep: "#0f5e86",
+      accentCool: "#178eb8"
+    }
+  },
+  brutal: {
+    warning: {
+      pageBg: "#ffe24e",
+      pageBgDeep: "#ffae42",
+      panelStrong: "#fff0b8",
+      panelBorder: "rgba(28, 22, 14, 0.9)",
+      accent: "#ff5c2b",
+      accentDeep: "#111111",
+      accentCool: "#111111"
+    },
+    cobalt: {
+      pageBg: "#73aeff",
+      pageBgDeep: "#306cff",
+      panelStrong: "#d9e8ff",
+      panelBorder: "rgba(15, 31, 78, 0.9)",
+      accent: "#103fe8",
+      accentDeep: "#111111",
+      accentCool: "#0d2d8f"
+    },
+    acid: {
+      pageBg: "#e1ff62",
+      pageBgDeep: "#a8eb36",
+      panelStrong: "#edff9e",
+      panelBorder: "rgba(19, 28, 8, 0.9)",
+      accent: "#6bbf00",
+      accentDeep: "#111111",
+      accentCool: "#2f4f00"
+    }
+  },
+  liquid: {
+    ultraviolet: {
+      pageBg: "#281a58",
+      pageBgDeep: "#0d162e",
+      panelStrong: "rgba(49, 58, 108, 0.82)",
+      panelBorder: "rgba(183, 172, 255, 0.22)",
+      accent: "#8f7cff",
+      accentDeep: "#d7d0ff",
+      accentCool: "#a89bff"
+    },
+    cosmic: {
+      pageBg: "#071f38",
+      pageBgDeep: "#050c1a",
+      panelStrong: "rgba(25, 65, 88, 0.82)",
+      panelBorder: "rgba(143, 220, 241, 0.22)",
+      accent: "#4cc7e8",
+      accentDeep: "#d6f8ff",
+      accentCool: "#80ddf2"
+    },
+    ember: {
+      pageBg: "#42102e",
+      pageBgDeep: "#0c0c1c",
+      panelStrong: "rgba(83, 28, 65, 0.82)",
+      panelBorder: "rgba(255, 163, 190, 0.22)",
+      accent: "#ff6b96",
+      accentDeep: "#ffd5e1",
+      accentCool: "#ff9ab8"
+    }
+  }
 };
 
 const HELPER_CLASSES = [
@@ -1173,6 +1349,20 @@ function schemeById(themeId, schemeId) {
   return theme.schemes.find((scheme) => scheme.id === canonicalSchemeId) || theme.schemes[0];
 }
 
+function hostSchemeTokens(themeId, schemeId) {
+  const theme = themeById(themeId);
+  const scheme = schemeById(theme.id, schemeId);
+  return HOST_SCHEME_TOKENS[theme.id]?.[scheme.id] || HOST_SCHEME_TOKENS[theme.id]?.[theme.schemes[0]?.id] || {
+    pageBg: "#eef5ff",
+    pageBgDeep: "#dcecff",
+    panelStrong: "#edf4ff",
+    panelBorder: "rgba(25, 118, 210, 0.16)",
+    accent: theme.accent,
+    accentDeep: theme.accent,
+    accentCool: theme.accent
+  };
+}
+
 function extractCodeBlock(raw) {
   const match = raw.match(/```(?:html)?\s*([\s\S]*?)```/i);
   return match ? match[1].trim() : raw.trim();
@@ -1216,6 +1406,55 @@ function sortLibraryEntries(entries) {
   });
 }
 
+function normalizeTag(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 28);
+}
+
+function normalizeTags(value) {
+  const rawTags = Array.isArray(value) ? value : String(value || "").split(/[,#\n]/);
+  const seen = new Set();
+  const tags = [];
+
+  rawTags.forEach((tag) => {
+    const normalized = normalizeTag(tag);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+
+    seen.add(normalized);
+    tags.push(normalized);
+  });
+
+  return tags.slice(0, 8);
+}
+
+function textFromHtml(html) {
+  const value = String(html || "");
+  if (typeof DOMParser === "undefined") {
+    return value.replace(/<[^>]+>/g, " ");
+  }
+
+  const doc = new DOMParser().parseFromString(`<body>${value}</body>`, "text/html");
+  return doc.body.textContent || value.replace(/<[^>]+>/g, " ");
+}
+
+function buildLibrarySearchCorpus(app) {
+  return [
+    app.title,
+    app.summary,
+    app.tags?.join(" "),
+    themeById(app.themeId).name,
+    schemeById(app.themeId, app.schemeId).name,
+    textFromHtml(app.html || ""),
+    textFromHtml(app.source || "")
+  ].join(" ").toLowerCase();
+}
+
 function extractAppMetadata(appHtml, fallbackTheme, fallbackScheme) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(`<body>${appHtml}</body>`, "text/html");
@@ -1234,10 +1473,12 @@ function extractAppMetadata(appHtml, fallbackTheme, fallbackScheme) {
     root?.querySelector("p, [data-llastro-summary]")?.textContent ||
     "Published from Chat2Tool."
   ).trim();
+  const tags = normalizeTags(root?.getAttribute("data-llastro-tags") || "");
 
   return {
     title: title.slice(0, 90),
     summary: summary.slice(0, 180),
+    tags,
     themeId,
     schemeId
   };
@@ -1246,7 +1487,7 @@ function extractAppMetadata(appHtml, fallbackTheme, fallbackScheme) {
 function buildExampleSnippet(themeId, schemeId) {
   return [
     "```html",
-    `<main ${APP_MARKER} ${THEME_MARKER}="${themeId}" ${SCHEME_MARKER}="${schemeId}" class="app-shell stack" x-data="{`,
+    `<main ${APP_MARKER} ${THEME_MARKER}="${themeId}" ${SCHEME_MARKER}="${schemeId}" data-llastro-tags="planner, tracker, team" class="app-shell stack" x-data="{`,
     "  view: 'board',",
     "  query: '',",
     "  showComposer: false,",
@@ -1522,11 +1763,14 @@ function createStudioApp() {
     studioSteps: STUDIO_STEPS,
     promptModes: PROMPT_MODES,
     helperClasses: HELPER_CLASSES,
+    appTheme: THEMES[0].id,
+    appScheme: THEMES[0].schemes[0].id,
     selectedTheme: THEMES[0].id,
     selectedScheme: THEMES[0].schemes[0].id,
     currentStudioStep: STUDIO_STEPS[0].id,
     promptMode: PROMPT_MODES[0].id,
     appName: "",
+    appTags: "",
     appBrief: DEFAULT_BRIEF,
     rawResponse: "",
     rawImportTimer: 0,
@@ -1541,6 +1785,8 @@ function createStudioApp() {
     currentView: "studio",
     library: [],
     activeLibraryId: "",
+    librarySearch: "",
+    activeTagFilters: [],
     isLibraryModalOpen: false,
     isLibraryHeaderExpanded: false,
     skipStudioResetOnNextEntry: false,
@@ -1554,6 +1800,18 @@ function createStudioApp() {
 
     get currentTheme() {
       return themeById(this.selectedTheme);
+    },
+
+    get currentAppTheme() {
+      return themeById(this.appTheme);
+    },
+
+    get currentAppSchemes() {
+      return this.currentAppTheme.schemes;
+    },
+
+    get currentAppScheme() {
+      return schemeById(this.appTheme, this.appScheme);
     },
 
     get currentSchemes() {
@@ -1633,6 +1891,50 @@ function createStudioApp() {
 
     get publishedApps() {
       return sortLibraryEntries(this.library);
+    },
+
+    get availableLibraryTags() {
+      const tagSet = new Set();
+      this.publishedApps.forEach((app) => {
+        normalizeTags(app.tags).forEach((tag) => tagSet.add(tag));
+      });
+      return [...tagSet].sort((left, right) => left.localeCompare(right));
+    },
+
+    get filteredLibraryApps() {
+      const queryTokens = this.librarySearch
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean);
+      const activeTags = normalizeTags(this.activeTagFilters);
+
+      return this.publishedApps.filter((app) => {
+        const appTags = normalizeTags(app.tags);
+        const tagMatch = !activeTags.length || activeTags.every((tag) => appTags.includes(tag));
+        if (!tagMatch) {
+          return false;
+        }
+
+        if (!queryTokens.length) {
+          return true;
+        }
+
+        const corpus = buildLibrarySearchCorpus(app);
+        return queryTokens.every((token) => corpus.includes(token));
+      });
+    },
+
+    get libraryStatusLabel() {
+      if (!this.publishedApps.length) {
+        return "No saved apps";
+      }
+
+      if (this.filteredLibraryApps.length === this.publishedApps.length) {
+        return `${this.publishedApps.length} saved`;
+      }
+
+      return `${this.filteredLibraryApps.length} of ${this.publishedApps.length} shown`;
     },
 
     get activeLibraryApp() {
@@ -1729,6 +2031,7 @@ function createStudioApp() {
         "- Do not rely on any assets, fonts, APIs, or network requests.",
         "- Keep everything inside one root app element.",
         "- Keep implementation self-contained and host-safe.",
+        "- Add data-llastro-tags=\"tag-one, tag-two\" to the root with 2-5 concise tags that describe the micro app type or subject.",
         "- When an icon helps, use Lucide placeholders such as <i data-lucide=\"calendar\" aria-hidden=\"true\"></i>.",
         "- Prefer Lucide over emoji or custom inline SVG for interface icons, and keep text labels visible for important actions.",
         "",
@@ -1777,7 +2080,7 @@ function createStudioApp() {
         "- When in doubt, simplify.",
         "",
         "Example root:",
-        `<main ${APP_MARKER} ${THEME_MARKER}="${this.currentTheme.id}" ${SCHEME_MARKER}="${this.currentScheme.id}" class="app-shell stack">`
+        `<main ${APP_MARKER} ${THEME_MARKER}="${this.currentTheme.id}" ${SCHEME_MARKER}="${this.currentScheme.id}" data-llastro-tags="planner, team" class="app-shell stack">`
       ];
 
       if (this.promptMode === "conversation") {
@@ -1893,6 +2196,46 @@ function createStudioApp() {
       return schemeById(themeId, schemeId);
     },
 
+    resolveHostSchemeAccent(themeId, schemeId) {
+      return hostSchemeTokens(themeId, schemeId).accent;
+    },
+
+    selectAppTheme(themeId) {
+      const nextThemeId = themeById(themeId).id;
+      this.appTheme = nextThemeId;
+      this.appScheme = themeById(nextThemeId).schemes[0]?.id || "";
+      this.applyAppTheme();
+      this.saveState();
+      this.statusMessage = `App theme set to ${this.currentAppTheme.name} · ${this.currentAppScheme.name}.`;
+    },
+
+    selectAppScheme(schemeId) {
+      this.appScheme = normalizeSchemeId(this.appTheme, schemeId);
+      this.applyAppTheme();
+      this.saveState();
+      this.statusMessage = `App scheme set to ${this.currentAppScheme.name}.`;
+    },
+
+    applyAppTheme() {
+      const theme = themeById(this.appTheme);
+      const scheme = schemeById(theme.id, this.appScheme);
+      const tokens = hostSchemeTokens(theme.id, scheme.id);
+      this.appTheme = theme.id;
+      this.appScheme = scheme.id;
+
+      const root = document.documentElement;
+      root.dataset.appTheme = theme.id;
+      root.dataset.appScheme = scheme.id;
+      root.style.setProperty("--app-scheme-gradient", scheme.gradient);
+      root.style.setProperty("--app-theme-accent", tokens.accent);
+      root.style.setProperty("--page-bg", tokens.pageBg);
+      root.style.setProperty("--page-bg-deep", tokens.pageBgDeep);
+      root.style.setProperty("--panel-bg-strong", tokens.panelStrong);
+      root.style.setProperty("--panel-border", tokens.panelBorder);
+      root.style.setProperty("--accent-deep", tokens.accentDeep);
+      root.style.setProperty("--accent-cool", tokens.accentCool);
+    },
+
     buildReferencePreview(themeId, schemeId) {
       const theme = themeById(themeId);
       const scheme = schemeById(themeId, schemeId);
@@ -1965,6 +2308,11 @@ function createStudioApp() {
       this.saveState();
     },
 
+    handleAppTagsInput() {
+      this.applyAppTagsToDraft();
+      this.saveState();
+    },
+
     goToStudioStep(stepId) {
       if (!this.studioSteps.some((step) => step.id === stepId)) {
         return;
@@ -2004,6 +2352,34 @@ function createStudioApp() {
       this.saveState();
     },
 
+    isLibraryTagActive(tag) {
+      return normalizeTags(this.activeTagFilters).includes(normalizeTag(tag));
+    },
+
+    toggleLibraryTag(tag) {
+      const normalized = normalizeTag(tag);
+      if (!normalized) {
+        return;
+      }
+
+      const activeTags = normalizeTags(this.activeTagFilters);
+      this.activeTagFilters = activeTags.includes(normalized)
+        ? activeTags.filter((activeTag) => activeTag !== normalized)
+        : [...activeTags, normalized];
+      this.saveState();
+    },
+
+    clearLibraryFilters() {
+      this.librarySearch = "";
+      this.activeTagFilters = [];
+      this.saveState();
+      this.statusMessage = "Library filters cleared.";
+    },
+
+    handleLibrarySearchInput() {
+      this.saveState();
+    },
+
     formatTimestamp(value) {
       if (!value) {
         return "Just now";
@@ -2023,6 +2399,7 @@ function createStudioApp() {
       await this.loadLucideRuntime();
       await this.loadLibrary();
       this.restoreState();
+      this.applyAppTheme();
       window.addEventListener("message", (event) => this.handlePreviewEditorMessage(event));
       window.addEventListener("hashchange", () => this.syncRouteFromLocation());
       window.addEventListener("popstate", () => this.syncRouteFromLocation());
@@ -2217,6 +2594,12 @@ function createStudioApp() {
         return;
       }
 
+      if (hash === "settings") {
+        this.currentView = "settings";
+        this.setLibraryModalOpen(false);
+        return;
+      }
+
       if (hash.startsWith("library/")) {
         const appId = decodeURIComponent(hash.slice("library/".length));
         this.currentView = "library";
@@ -2266,6 +2649,10 @@ function createStudioApp() {
       this.setRouteState(appId ? `#library/${encodeURIComponent(appId)}` : "#library", { fullscreen, replace });
     },
 
+    goToSettings() {
+      this.setRouteState("#settings", { fullscreen: false });
+    },
+
     openLibraryApp(appId) {
       this.activeLibraryId = appId;
       this.goToLibrary(appId, { fullscreen: true });
@@ -2289,6 +2676,7 @@ function createStudioApp() {
       this.selectedTheme = app.themeId;
       this.selectedScheme = normalizeSchemeId(app.themeId, app.schemeId);
       this.appName = app.title;
+      this.appTags = normalizeTags(app.tags).join(", ");
       this.rawResponse = app.source;
       this.currentEditingId = app.id;
       this.currentEditingSourceTitle = app.title;
@@ -2359,6 +2747,7 @@ function createStudioApp() {
       this.currentStudioStep = STUDIO_STEPS[0].id;
       this.promptMode = PROMPT_MODES[0].id;
       this.appName = "";
+      this.appTags = "";
       this.appBrief = DEFAULT_BRIEF;
       this.rawResponse = "";
       this.issues = [];
@@ -2387,6 +2776,7 @@ function createStudioApp() {
       this.importedAppTitle = "Untitled Draft";
       this.currentEditingId = "";
       this.currentEditingSourceTitle = "";
+      this.appTags = "";
       this.renderStudioPreview();
       this.statusMessage = "Draft cleared.";
       this.saveState();
@@ -2427,6 +2817,29 @@ function createStudioApp() {
       this.renderStudioPreview();
     },
 
+    applyAppTagsToDraft() {
+      if (!this.normalizedAppHtml) {
+        return;
+      }
+
+      const parser = new DOMParser();
+      const draft = parser.parseFromString(`<body>${this.normalizedAppHtml}</body>`, "text/html");
+      const root = draft.body.querySelector(`[${APP_MARKER}]`);
+      if (!root) {
+        return;
+      }
+
+      const tags = normalizeTags(this.appTags);
+      if (tags.length) {
+        root.setAttribute("data-llastro-tags", tags.join(", "));
+      } else {
+        root.removeAttribute("data-llastro-tags");
+      }
+
+      this.normalizedAppHtml = draft.body.innerHTML.trim();
+      this.renderStudioPreview();
+    },
+
     applySelectedThemeToDraft() {
       if (!this.normalizedAppHtml) {
         return;
@@ -2454,6 +2867,7 @@ function createStudioApp() {
       this.importedScheme = nextSchemeId;
       this.importedAppTitle = meta.title;
       this.applyAppTitleToDraft();
+      this.applyAppTagsToDraft();
       this.statusMessage = `Draft updated to ${themeById(nextThemeId).name} · ${schemeById(nextThemeId, nextSchemeId).name}.`;
     },
 
@@ -2477,7 +2891,11 @@ function createStudioApp() {
       if (!this.appName.trim()) {
         this.appName = result.meta.title;
       }
+      if (!this.appTags.trim() && result.meta.tags.length) {
+        this.appTags = result.meta.tags.join(", ");
+      }
       this.applyAppTitleToDraft();
+      this.applyAppTagsToDraft();
 
       this.statusMessage = silent ? "Draft loaded." : "Preview updated.";
       this.saveState();
@@ -2723,12 +3141,20 @@ function createStudioApp() {
         .filter((entry) => {
           return entry && typeof entry.id === "string" && typeof entry.html === "string";
         })
-        .map((entry) => ({
-          ...entry,
-          themeId: themeById(entry.themeId).id,
-          schemeId: normalizeSchemeId(entry.themeId, entry.schemeId),
-          source: typeof entry.source === "string" ? entry.source : entry.html
-        }));
+        .map((entry) => {
+          const themeId = themeById(entry.themeId).id;
+          const schemeId = normalizeSchemeId(themeId, entry.schemeId);
+          const normalizedEntry = {
+            ...entry,
+            themeId,
+            schemeId,
+            source: typeof entry.source === "string" ? entry.source : entry.html
+          };
+          return {
+            ...normalizedEntry,
+            tags: normalizeTags(entry.tags)
+          };
+        });
     },
 
     readLegacyLibrary() {
@@ -2802,6 +3228,9 @@ function createStudioApp() {
         return;
       }
 
+      this.applyAppTitleToDraft();
+      this.applyAppTagsToDraft();
+
       const now = new Date().toISOString();
       const meta = extractAppMetadata(
         this.normalizedAppHtml,
@@ -2809,12 +3238,16 @@ function createStudioApp() {
         this.importedScheme || this.selectedScheme
       );
       const title = this.appName.trim() || meta.title;
+      const manualTags = normalizeTags(this.appTags);
+      const metadataTags = normalizeTags(meta.tags);
+      const tags = manualTags.length ? manualTags : metadataTags;
       const existingIndex = this.isSaveAsNew ? -1 : this.library.findIndex((app) => app.id === this.currentEditingId);
       const existingApp = existingIndex >= 0 ? this.library[existingIndex] : null;
       const entry = {
         id: existingApp?.id || makeId(),
         title,
         summary: meta.summary,
+        tags,
         themeId: meta.themeId,
         schemeId: meta.schemeId,
         source: this.rawResponse.trim() || this.normalizedAppHtml,
@@ -2843,6 +3276,7 @@ function createStudioApp() {
       this.activeLibraryId = entry.id;
       this.importedAppTitle = entry.title;
       this.appName = entry.title;
+      this.appTags = entry.tags.join(", ");
       this.saveState();
       this.goToLibrary(entry.id);
       this.statusMessage = existingApp ? `Updated "${entry.title}".` : `Published "${entry.title}" to the library.`;
@@ -2894,18 +3328,22 @@ function createStudioApp() {
 
     saveState() {
       const payload = {
+        appTheme: this.appTheme,
+        appScheme: this.appScheme,
         selectedTheme: this.selectedTheme,
         selectedScheme: this.selectedScheme,
         currentStudioStep: this.currentStudioStep,
         promptMode: this.promptMode,
         appName: this.appName,
+        appTags: this.appTags,
         appBrief: this.appBrief,
         rawResponse: this.rawResponse,
         currentEditingId: this.currentEditingId,
         currentEditingSourceTitle: this.currentEditingSourceTitle,
         activeLibraryId: this.activeLibraryId,
+        librarySearch: this.librarySearch,
+        activeTagFilters: this.activeTagFilters,
         editorEnabled: this.editorEnabled,
-        editorEnabled: this.editorEnabled
       };
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -2919,6 +3357,13 @@ function createStudioApp() {
         }
 
         const payload = JSON.parse(raw);
+        const restoredAppThemeId = normalizeThemeId(payload.appTheme);
+        if (restoredAppThemeId) {
+          this.appTheme = restoredAppThemeId;
+        }
+        if (typeof payload.appScheme === "string") {
+          this.appScheme = normalizeSchemeId(this.appTheme, payload.appScheme);
+        }
         const restoredThemeId = normalizeThemeId(payload.selectedTheme);
         if (restoredThemeId) {
           this.selectedTheme = restoredThemeId;
@@ -2935,6 +3380,9 @@ function createStudioApp() {
         if (typeof payload.appName === "string") {
           this.appName = payload.appName;
         }
+        if (typeof payload.appTags === "string") {
+          this.appTags = payload.appTags;
+        }
         if (typeof payload.appBrief === "string") {
           this.appBrief = payload.appBrief;
         }
@@ -2950,8 +3398,11 @@ function createStudioApp() {
         if (typeof payload.activeLibraryId === "string") {
           this.activeLibraryId = payload.activeLibraryId;
         }
-        if (typeof payload.editorEnabled === "boolean") {
-          this.editorEnabled = payload.editorEnabled;
+        if (typeof payload.librarySearch === "string") {
+          this.librarySearch = payload.librarySearch;
+        }
+        if (Array.isArray(payload.activeTagFilters)) {
+          this.activeTagFilters = normalizeTags(payload.activeTagFilters);
         }
         if (typeof payload.editorEnabled === "boolean") {
           this.editorEnabled = payload.editorEnabled;
