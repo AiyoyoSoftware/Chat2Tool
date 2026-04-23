@@ -479,6 +479,8 @@ const PROMPT_MODES = [
   }
 ];
 
+const DEFAULT_PROMPT_MODE = "conversation";
+
 const DEFAULT_BRIEF = [
   "Build a polished single-page app for a small team retreat planner.",
   "Include a schedule board, participant notes, budget metrics, and a quick add form.",
@@ -1768,7 +1770,7 @@ function createStudioApp() {
     selectedTheme: THEMES[0].id,
     selectedScheme: THEMES[0].schemes[0].id,
     currentStudioStep: STUDIO_STEPS[0].id,
-    promptMode: PROMPT_MODES[0].id,
+    promptMode: DEFAULT_PROMPT_MODE,
     appName: "",
     appTags: "",
     appBrief: DEFAULT_BRIEF,
@@ -2745,7 +2747,7 @@ function createStudioApp() {
       this.selectedTheme = THEMES[0].id;
       this.selectedScheme = THEMES[0].schemes[0].id;
       this.currentStudioStep = STUDIO_STEPS[0].id;
-      this.promptMode = PROMPT_MODES[0].id;
+      this.promptMode = DEFAULT_PROMPT_MODE;
       this.appName = "";
       this.appTags = "";
       this.appBrief = DEFAULT_BRIEF;
