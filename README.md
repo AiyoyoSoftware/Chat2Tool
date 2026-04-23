@@ -1,31 +1,49 @@
-# llastro
+# Chat2Tool
 
-`llastro` is a greenfield static studio for theme-constrained Alpine.js micro-apps.
+Chat2Tool is a local studio for turning conversations, notes, and rough thinking into small reusable web tools.
 
-It is built around one workflow:
+It is designed as an active alternative to notebook-first workflows in Joplin, Obsidian, or plain markdown. Instead of saving a note that you have to reread and mentally reassemble later, Chat2Tool helps you save the workflow itself: a focused one-page Alpine.js tool that can be reopened, edited, searched, exported, and used again.
 
-1. Write a brief.
-2. Copy the generated prompt into ChatGPT.
-3. Paste the returned `html` code block into the studio.
-4. Preview it in a sandboxed iframe.
-5. Publish it into the local library.
-6. Reopen, edit, and export it from the same host.
+## What It Is For
 
-## What the runtime enforces
+- Distilling a useful ChatGPT conversation into one working personal tool.
+- Turning a note, plan, checklist, calculator idea, decision process, or tracker into an interactive interface.
+- Building a local library of tiny tools that preserve the action behind your thinking.
+- Replacing passive notes with durable artifacts you can operate directly.
+
+Good fits include planners, calculators, checklists, trackers, generators, comparison tools, editors, decision helpers, and compact dashboards for personal workflows.
+
+Chat2Tool is not meant to be a general website builder, a SaaS dashboard generator, or a markdown editor. The goal is smaller and sharper: capture the useful workflow hiding inside a conversation or note, then keep it as software.
+
+## Core Workflow
+
+1. Choose whether the tool should come from the current conversation or from a custom brief.
+2. Pick a theme and color scheme so the generated tool stays inside a consistent visual system.
+3. Copy the generated prompt into ChatGPT.
+4. Paste the returned `html` code block back into Chat2Tool.
+5. Let the generated tool provide its first title, summary, and tags.
+6. Preview the tool, then adjust its name/tags and any visible copy if needed.
+7. Save it to the local tool library.
+8. Reopen, revise, download, or export it whenever that workflow is useful again.
+
+## Runtime Contract
+
+Generated tools are intentionally constrained so they remain portable, safe to preview, and visually consistent.
 
 - Alpine.js is the interaction layer.
-- The generated app must use one root element with `data-llastro-app`.
+- The generated tool must use one root element with `data-llastro-app`.
 - The root must declare exactly one theme with `data-llastro-theme`.
-- The root must also declare one valid color scheme with `data-llastro-scheme`.
-- Custom CSS and external scripts are stripped at import time so the shared theme framework stays consistent.
+- The root must declare one valid color scheme with `data-llastro-scheme`.
+- RTL tools can set `dir="rtl"` and a matching `lang` attribute on the root element.
+- Custom CSS and external scripts are stripped at import time so the shared theme framework stays in control.
 - Lucide icon placeholders are supported through the host runtime using `data-lucide="icon-name"`.
 - Semantic HTML plus a small helper-class set gives LLM output a consistent visual language.
 
-## Theme system
+## Theme System
 
-Themes are meant to change more than color. Each one shifts typography, radii, shadow style, surface treatment, and component feel so generated apps can land in meaningfully different visual languages.
+Themes change more than color. Each one shifts typography, radii, shadow style, surface treatment, and component feel so saved tools can match different kinds of work without custom CSS.
 
-Each theme also includes multiple built-in color schemes, so users can stay inside one visual era while swapping palette and mood.
+Each theme includes multiple built-in color schemes:
 
 - `flat`: 2013-2017 Flat Design / Material with clean 2D blocks, solid color, and typography-first hierarchy.
 - `material2`: 2018-2019 Flat 2.0 / Material 2.0 with subtle elevation, soft gradients, and restrained depth.
@@ -34,19 +52,25 @@ Each theme also includes multiple built-in color schemes, so users can stay insi
 - `brutal`: 2023-2024 Brutalism / Flat 2.0 with bold type, vivid color, and minimal decoration.
 - `liquid`: 2025-2026 Liquid Glass & Motion UI with refined glow, rich gradients, and premium glass chrome.
 
-Helper classes available to the LLM:
+Helper classes available to generated tools:
 
 `app-shell`, `hero`, `spotlight`, `panel`, `card-grid`, `card`, `stack`, `cluster`, `split`, `toolbar`, `actions`, `pill`, `metric`, `frame`, `empty-state`, `muted`, `divider`
 
-## Local development
+## Local Development
 
-No build step is required, but the app now needs the bundled Node server so the published library can be persisted on disk.
+No build step is required. The bundled Node server serves the static studio and persists the local tool library to disk.
 
 ```bash
 npm run dev
 ```
 
 Then open `http://localhost:9944`.
+
+Run syntax checks with:
+
+```bash
+npm run check
+```
 
 ## Docker
 
@@ -56,31 +80,31 @@ docker compose up --build
 
 Then open `http://localhost:9944`.
 
-Published apps are stored in `/data/library.json` inside the container and persisted through the named Docker volume `llastro-data`.
+Saved tools are stored in `/data/library.json` inside the container and persisted through the named Docker volume `llastro-data`.
 
-## Generated app contract
+## Generated Tool Shape
 
-The prompt asks the model to return exactly one fenced `html` block for a focused Alpine.js micro-app. The preferred root looks like this:
+The prompt asks ChatGPT to return exactly one fenced `html` block for a focused Alpine.js tool. The preferred root looks like this:
 
 ```html
 <main data-llastro-app data-llastro-theme="liquid" data-llastro-scheme="ultraviolet" class="app-shell stack">
-  <!-- semantic Alpine app -->
+  <!-- semantic Alpine tool -->
 </main>
 ```
 
 The host injects:
 
 - `framework.css` inline into the preview/export document
-- Alpine.js from the CDN
+- Alpine.js from the vendored browser runtime
 - the vendored Lucide browser runtime from `vendor/lucide.min.js`
 - the pasted HTML fragment inside a standalone document shell
-- filesystem-backed library persistence in `data/library.json` for published apps
+- filesystem-backed library persistence in `data/library.json` for saved tools
 
 ## Files
 
 - `index.html`: studio UI
 - `styles.css`: host-shell styling
-- `framework.css`: semantic theme framework for generated apps
+- `framework.css`: semantic theme framework for generated tools
 - `app.js`: Alpine studio logic
 - `server.js`: static file host plus the filesystem-backed library API
 - `Dockerfile` and `docker-compose.yml`: self-hosting path

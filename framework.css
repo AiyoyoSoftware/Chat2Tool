@@ -61,6 +61,16 @@
   line-height: 1.55;
 }
 
+[data-llastro-app][dir="rtl"] {
+  direction: rtl;
+  text-align: start;
+}
+
+[data-llastro-app][dir="ltr"] {
+  direction: ltr;
+  text-align: start;
+}
+
 [data-llastro-app][data-llastro-theme="flat"] {
   --ll-page-bg: #eef5ff;
   --ll-page-bg-deep: #dcecff;
@@ -696,14 +706,14 @@
 }
 
 [data-llastro-app] blockquote {
-  padding-left: 1rem;
-  border-left: 4px solid var(--ll-accent);
+  padding-inline-start: 1rem;
+  border-inline-start: 4px solid var(--ll-accent);
   color: var(--ll-muted);
 }
 
 [data-llastro-app] ul,
 [data-llastro-app] ol {
-  padding-left: 1.2rem;
+  padding-inline-start: 1.2rem;
 }
 
 [data-llastro-app] li + li {
@@ -727,7 +737,7 @@
 [data-llastro-app] th,
 [data-llastro-app] td {
   padding: 0.85rem;
-  text-align: left;
+  text-align: start;
   border-bottom: 1px solid var(--ll-border);
 }
 
@@ -800,8 +810,7 @@
 }
 
 [data-llastro-app] input[type="range"] {
-  padding-left: 0;
-  padding-right: 0;
+  padding-inline: 0;
   accent-color: var(--ll-accent);
 }
 

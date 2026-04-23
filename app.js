@@ -442,50 +442,50 @@ const REFERENCE_COVERAGE = [
 const STUDIO_STEPS = [
   {
     id: "brief",
-    label: "Prompt Setup",
-    summary: "Choose where the requirements come from and shape the app request."
+    label: "Source",
+    summary: "Choose whether this tool comes from a conversation or a custom brief."
   },
   {
     id: "theme",
     label: "Theme + Scheme",
-    summary: "Choose the visual direction and color scheme the model should follow."
+    summary: "Choose the visual system your saved tool should use."
   },
   {
     id: "handoff",
-    label: "Copy + Paste",
-    summary: "Copy the generated prompt, paste the response back in, and move straight to preview."
+    label: "Generate",
+    summary: "Send the prompt to ChatGPT, then paste the generated tool back here."
   },
   {
     id: "preview",
-    label: "Edit",
-    summary: "Edit the sandboxed runtime, then publish or export the draft."
+    label: "Review + Save",
+    summary: "Review the tool, confirm its title and tags, then save or export it."
   }
 ];
 
 const PROMPT_MODES = [
   {
     id: "custom",
-    eyebrow: "Custom brief",
-    name: "Choose Your Own Prompt",
-    summary: "Write the product brief yourself and steer the app directly.",
-    detail: "Best when you already know the exact micro app you want to generate."
+    eyebrow: "Write the source",
+    name: "Use Custom Brief",
+    summary: "Describe the workflow you want to preserve as a tool.",
+    detail: "Best for turning a fresh note, checklist, or idea into an interface."
   },
   {
     id: "conversation",
-    eyebrow: "Conversation distill",
+    eyebrow: "Distill the chat",
     name: "Use Conversation",
-    summary: "Turn the current chat into one focused micro app.",
-    detail: "Best when the requirements already live in an existing conversation."
+    summary: "Turn the active chat into one focused reusable tool.",
+    detail: "Best when the useful workflow already exists in a conversation."
   }
 ];
 
 const DEFAULT_PROMPT_MODE = "conversation";
 
 const DEFAULT_BRIEF = [
-  "Build a polished single-page app for a small team retreat planner.",
-  "Include a schedule board, participant notes, budget metrics, and a quick add form.",
+  "Turn my planning note into a reusable decision tool for a small team retreat.",
+  "Include a schedule board, participant notes, budget guardrails, and a quick add form.",
   "Use Alpine.js for state, filtering, and lightweight interactions.",
-  "Keep it responsive and make the UI feel production-ready."
+  "Keep it focused enough to replace the note when I need to plan again."
 ].join(" ");
 
 const MINIMAL_FRAMEWORK_CSS = `
@@ -494,6 +494,14 @@ const MINIMAL_FRAMEWORK_CSS = `
   padding: 1rem;
   color: #22301c;
   background: #f6f4eb;
+}
+[data-llastro-app][dir="rtl"] {
+  direction: rtl;
+  text-align: start;
+}
+[data-llastro-app][dir="ltr"] {
+  direction: ltr;
+  text-align: start;
 }
 [data-llastro-app] .app-shell {
   max-width: 1100px;
@@ -1468,12 +1476,12 @@ function extractAppMetadata(appHtml, fallbackTheme, fallbackScheme) {
   const title = (
     root?.getAttribute("data-llastro-title") ||
     root?.querySelector("h1, h2, [data-llastro-title]")?.textContent ||
-    `Untitled ${themeById(themeId).name} App`
+    `Untitled ${themeById(themeId).name} Tool`
   ).trim();
   const summary = (
     root?.getAttribute("data-llastro-summary") ||
     root?.querySelector("p, [data-llastro-summary]")?.textContent ||
-    "Published from Chat2Tool."
+    "Saved from Chat2Tool."
   ).trim();
   const tags = normalizeTags(root?.getAttribute("data-llastro-tags") || "");
 
@@ -1489,7 +1497,7 @@ function extractAppMetadata(appHtml, fallbackTheme, fallbackScheme) {
 function buildExampleSnippet(themeId, schemeId) {
   return [
     "```html",
-    `<main ${APP_MARKER} ${THEME_MARKER}="${themeId}" ${SCHEME_MARKER}="${schemeId}" data-llastro-tags="planner, tracker, team" class="app-shell stack" x-data="{`,
+    `<main ${APP_MARKER} ${THEME_MARKER}="${themeId}" ${SCHEME_MARKER}="${schemeId}" data-llastro-title="Retreat Control Room" data-llastro-summary="A reusable planning board for coordinating retreat decisions, owners, and workstreams." data-llastro-tags="planner, tracker, team" class="app-shell stack" x-data="{`,
     "  view: 'board',",
     "  query: '',",
     "  showComposer: false,",
@@ -1783,7 +1791,7 @@ function createStudioApp() {
     normalizedAppHtml: "",
     importedTheme: "",
     importedScheme: "",
-    importedAppTitle: "Untitled Draft",
+    importedAppTitle: "Untitled Tool",
     currentView: "studio",
     library: [],
     activeLibraryId: "",
@@ -1944,7 +1952,7 @@ function createStudioApp() {
     },
 
     get draftTitle() {
-      return this.appName.trim() || this.importedAppTitle || "Untitled Draft";
+      return this.appName.trim() || this.importedAppTitle || "Untitled Tool";
     },
 
     get isSaveAsNew() {
@@ -1958,26 +1966,26 @@ function createStudioApp() {
 
     get publishButtonLabel() {
       if (this.isSaveAsNew) {
-        return "Save As New App";
+        return "Save As New Tool";
       }
 
-      return this.currentEditingId ? "Update Library App" : "Publish To Library";
+      return this.currentEditingId ? "Update Saved Tool" : "Save To Library";
     },
 
     get publishStateLabel() {
       if (this.isSaveAsNew) {
-        return "Saving as new app";
+        return "Saving as new tool";
       }
 
       if (this.currentEditingId) {
-        return "Editing published app";
+        return "Editing saved tool";
       }
 
       if (this.normalizedAppHtml) {
-        return "Draft ready";
+        return "Tool ready";
       }
 
-      return "Import needed";
+      return "Paste a tool first";
     },
 
     get promptText() {
@@ -1986,18 +1994,18 @@ function createStudioApp() {
 
     get promptFieldLabel() {
       if (this.promptMode === "conversation") {
-        return "Paste this prompt into the existing ChatGPT conversation";
+        return "Prompt to paste into the existing ChatGPT conversation";
       }
 
-      return "Paste this prompt into ChatGPT";
+      return "Prompt to paste into ChatGPT";
     },
 
     get promptFieldHint() {
       if (this.promptMode === "conversation") {
-        return "Send this in the same conversation you want to distill into a shipped micro app.";
+        return "Send this in the same conversation you want to turn into a reusable tool.";
       }
 
-      return "Send this in a fresh ChatGPT prompt or a working thread for the app you want to generate.";
+      return "Send this in a fresh ChatGPT prompt or a working thread for the note or workflow you want to make usable.";
     },
 
     buildPromptText() {
@@ -2033,7 +2041,12 @@ function createStudioApp() {
         "- Do not rely on any assets, fonts, APIs, or network requests.",
         "- Keep everything inside one root app element.",
         "- Keep implementation self-contained and host-safe.",
-        "- Add data-llastro-tags=\"tag-one, tag-two\" to the root with 2-5 concise tags that describe the micro app type or subject.",
+        "- Add data-llastro-title=\"Tool Name\" to the root with a concise title for the saved tool.",
+        "- Add data-llastro-summary=\"One sentence summary\" to the root with a clear library summary.",
+        "- Add data-llastro-tags=\"tag-one, tag-two\" to the root with 2-5 concise tags that describe the tool type or subject.",
+        "- For Arabic, Hebrew, Persian, Urdu, or any explicit right-to-left request, add dir=\"rtl\" and a matching lang attribute such as lang=\"ar\" to the root element.",
+        "- For left-to-right languages, omit dir or use dir=\"ltr\" only when the source explicitly needs it.",
+        "- Use semantic order and logical layout; do not fake RTL by reversing text manually.",
         "- When an icon helps, use Lucide placeholders such as <i data-lucide=\"calendar\" aria-hidden=\"true\"></i>.",
         "- Prefer Lucide over emoji or custom inline SVG for interface icons, and keep text labels visible for important actions.",
         "",
@@ -2043,7 +2056,7 @@ function createStudioApp() {
         "- Prefer structure and hierarchy over ornamental wrappers.",
         "",
         "Quality bar:",
-        "- Production-ready, focused, and complete.",
+        "- Focused, complete, and useful enough to replace a passive note.",
         "- No dead buttons.",
         "- No filler text, placeholders, fake features, or commentary.",
         "- No \"coming soon\" elements.",
@@ -2051,7 +2064,7 @@ function createStudioApp() {
         "- Make concrete implementation choices and implement them cleanly.",
         "",
         "State design guidance:",
-        "- Model the app state clearly.",
+        "- Model the tool state clearly.",
         "- Keep mutable state minimal.",
         "- Compute derived output instead of duplicating state.",
         "- Keep naming clean and readable.",
@@ -2075,28 +2088,29 @@ function createStudioApp() {
         currentSchemeLines,
         "",
         "Decision policy:",
-        "- Start from the core user task.",
-        "- Choose the smallest complete feature set that makes the app genuinely useful.",
+        "- Start from the core user task or workflow hidden in the source material.",
+        "- Choose the smallest complete feature set that makes the tool genuinely useful.",
         "- Cut anything that does not improve the primary workflow.",
         "- Favor clarity, responsiveness, and real interaction over breadth.",
         "- When in doubt, simplify.",
         "",
         "Example root:",
-        `<main ${APP_MARKER} ${THEME_MARKER}="${this.currentTheme.id}" ${SCHEME_MARKER}="${this.currentScheme.id}" data-llastro-tags="planner, team" class="app-shell stack">`
+        `<main ${APP_MARKER} ${THEME_MARKER}="${this.currentTheme.id}" ${SCHEME_MARKER}="${this.currentScheme.id}" data-llastro-title="Retreat Decision Tool" data-llastro-summary="A reusable planner for turning retreat notes into decisions, tasks, and budget guardrails." data-llastro-tags="planner, decisions, team" class="app-shell stack">`
       ];
 
       if (this.promptMode === "conversation") {
         return [
-          "You are generating a production-ready Alpine.js single page micro app for the llastro host runtime.",
+          "You are generating a focused Alpine.js single page tool for the llastro host runtime.",
           "",
           "Use the current conversation as the only source of requirements.",
+          "Infer the saved tool title, library summary, and tags from that conversation; the user will be able to adjust them after import.",
           "",
-          "Build the app that a smart human would create after reading this conversation and deciding to ship only the most useful 1-page tool from it.",
+          "Build the tool that a smart human would save after reading this conversation and deciding what future workflow is worth preserving.",
           "",
-          "Before generating the app, internally determine:",
+          "Before generating the tool, internally determine:",
           "1. the primary user problem in the conversation,",
-          "2. the smallest useful tool that solves it,",
-          "3. the minimal feature set required for that tool to feel complete.",
+          "2. the smallest useful tool that solves it or makes it repeatable,",
+          "3. the minimal feature set required for that tool to replace rereading the conversation.",
           "",
           "Then implement that tool directly.",
           "",
@@ -2104,8 +2118,8 @@ function createStudioApp() {
           "- Prefer the main problem over side topics.",
           "- Prefer explicit asks over inferred wishes.",
           "- Prefer repeated themes over one-off mentions.",
-          "- Prefer a narrow useful tool over a broad feature-rich app.",
-          "- Prefer shipping a complete small app over an ambitious incomplete one.",
+          "- Prefer a narrow useful tool over a broad feature-rich interface.",
+          "- Prefer saving a complete small tool over an ambitious incomplete one.",
           "",
           "Conversation distillation rules:",
           "- Extract concrete tasks, constraints, vocabulary, and preferences from the chat.",
@@ -2114,7 +2128,7 @@ function createStudioApp() {
           "- Reuse the language and framing of the conversation where it improves fit.",
           "",
           "Scope rules:",
-          "- Build one micro app, not a suite.",
+          "- Build one tool, not a suite.",
           "- Keep the scope tight, coherent, and immediately usable.",
           "- Avoid backend assumptions unless clearly required by the conversation.",
           "- Prefer local state and lightweight interactions.",
@@ -2125,13 +2139,14 @@ function createStudioApp() {
       }
 
       return [
-        "You are generating a production-ready Alpine.js micro-app for the llastro host runtime.",
+        "You are generating a focused Alpine.js single page tool for the llastro host runtime.",
         "",
-        "Use the app brief below as the source of requirements.",
+        "Use the tool brief below as the source of requirements.",
+        "Infer the saved tool title, library summary, and tags from the brief; the user will be able to adjust them after import.",
         "",
-        "Your job is to produce a compact, self-contained, directly usable single-page utility. The result should feel like a saved executable artifact derived from a conversation: focused, practical, and worth revisiting.",
+        "Your job is to produce a compact, self-contained, directly usable utility. The result should feel like a saved executable artifact derived from a note or conversation: focused, practical, and worth revisiting.",
         "",
-        "The app must be a micro-app:",
+        "The result must be a small tool:",
         "- Solve one clear job well.",
         "- Prefer one strong workflow over many shallow features.",
         "- Keep scope tight.",
@@ -2152,7 +2167,7 @@ function createStudioApp() {
         "- decorative sections without function",
         "",
         "Core product rules:",
-        "- Build one polished micro-app, not a broad platform.",
+        "- Build one polished tool, not a broad platform.",
         "- Prefer 1-3 meaningful sections.",
         "- Every section must support the core task.",
         "- Every control must do something real.",
@@ -2171,21 +2186,21 @@ function createStudioApp() {
         "- Do not pretend data is persisted unless the brief explicitly asks for localStorage and it is clearly appropriate.",
         "",
         "Usability rules:",
-        "- The app must be directly understandable and immediately usable.",
+        "- The tool must be directly understandable and immediately usable.",
         "- Important actions should be visible without hunting.",
         "- The layout should work well on both mobile and desktop using structure alone, without custom CSS.",
         "- Prefer a strong main panel with a few supporting surfaces over sprawling grids.",
         "- When the brief is ambiguous, choose the simplest complete interpretation.",
         "",
-        "Micro-app heuristics:",
-        "- Good app types include generators, planners, calculators, builders, checklists, trackers, explorers, editors, and decision helpers.",
+        "Tool heuristics:",
+        "- Good tool types include generators, planners, calculators, builders, checklists, trackers, explorers, editors, and decision helpers.",
         "- Prefer one main object of interaction.",
         "- Prefer interfaces where the user changes inputs and immediately sees useful output.",
         "- Prefer operational tools over presentation surfaces.",
         "",
         ...sharedRuntimeLines,
         "",
-        "App brief:",
+        "Tool brief:",
         this.appBrief.trim() || DEFAULT_BRIEF
       ].join("\n");
     },
@@ -2208,14 +2223,14 @@ function createStudioApp() {
       this.appScheme = themeById(nextThemeId).schemes[0]?.id || "";
       this.applyAppTheme();
       this.saveState();
-      this.statusMessage = `App theme set to ${this.currentAppTheme.name} · ${this.currentAppScheme.name}.`;
+      this.statusMessage = `Studio theme set to ${this.currentAppTheme.name} · ${this.currentAppScheme.name}.`;
     },
 
     selectAppScheme(schemeId) {
       this.appScheme = normalizeSchemeId(this.appTheme, schemeId);
       this.applyAppTheme();
       this.saveState();
-      this.statusMessage = `App scheme set to ${this.currentAppScheme.name}.`;
+      this.statusMessage = `Studio scheme set to ${this.currentAppScheme.name}.`;
     },
 
     applyAppTheme() {
@@ -2261,8 +2276,8 @@ function createStudioApp() {
 
       this.promptMode = modeId;
       this.statusMessage = modeId === "conversation"
-        ? "Conversation prompt ready."
-        : "Custom prompt ready.";
+        ? "Conversation-to-tool prompt ready."
+        : "Custom tool prompt ready.";
       this.saveState();
     },
 
@@ -2315,6 +2330,18 @@ function createStudioApp() {
       this.saveState();
     },
 
+    syncStudioStepViewport() {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+
+      this.$nextTick(() => {
+        window.requestAnimationFrame(() => {
+          this.$refs.studioWorkspace?.scrollIntoView({ block: "start" });
+        });
+      });
+    },
+
     goToStudioStep(stepId) {
       if (!this.studioSteps.some((step) => step.id === stepId)) {
         return;
@@ -2326,6 +2353,7 @@ function createStudioApp() {
 
       this.currentStudioStep = stepId;
       this.saveState();
+      this.syncStudioStepViewport();
     },
 
     nextStudioStep() {
@@ -2339,6 +2367,7 @@ function createStudioApp() {
 
       this.currentStudioStep = this.studioSteps[this.currentStudioStepIndex + 1].id;
       this.saveState();
+      this.syncStudioStepViewport();
     },
 
     previousStudioStep() {
@@ -2352,6 +2381,7 @@ function createStudioApp() {
 
       this.currentStudioStep = this.studioSteps[this.currentStudioStepIndex - 1].id;
       this.saveState();
+      this.syncStudioStepViewport();
     },
 
     isLibraryTagActive(tag) {
@@ -2452,7 +2482,7 @@ function createStudioApp() {
         }
         this.editorSelection = data.selection || this.editorSelection;
         this.editorTextDraft = this.editorSelection?.text?.draft || "";
-        this.statusMessage = "Draft updated in edit mode.";
+        this.statusMessage = "Tool updated in edit mode.";
         this.saveState();
       }
     },
@@ -2756,7 +2786,7 @@ function createStudioApp() {
       this.normalizedAppHtml = "";
       this.importedTheme = "";
       this.importedScheme = "";
-      this.importedAppTitle = "Untitled Draft";
+      this.importedAppTitle = "Untitled Tool";
       this.currentEditingId = "";
       this.currentEditingSourceTitle = "";
       this.renderStudioPreview();
@@ -2775,12 +2805,12 @@ function createStudioApp() {
       this.normalizedAppHtml = "";
       this.importedTheme = "";
       this.importedScheme = "";
-      this.importedAppTitle = "Untitled Draft";
+      this.importedAppTitle = "Untitled Tool";
       this.currentEditingId = "";
       this.currentEditingSourceTitle = "";
       this.appTags = "";
       this.renderStudioPreview();
-      this.statusMessage = "Draft cleared.";
+      this.statusMessage = "Tool draft cleared.";
       this.saveState();
     },
 
@@ -2870,7 +2900,7 @@ function createStudioApp() {
       this.importedAppTitle = meta.title;
       this.applyAppTitleToDraft();
       this.applyAppTagsToDraft();
-      this.statusMessage = `Draft updated to ${themeById(nextThemeId).name} · ${schemeById(nextThemeId, nextSchemeId).name}.`;
+      this.statusMessage = `Tool theme updated to ${themeById(nextThemeId).name} · ${schemeById(nextThemeId, nextSchemeId).name}.`;
     },
 
     importResponse(silent = false) {
@@ -2878,7 +2908,7 @@ function createStudioApp() {
       this.resetEditorSelection();
 
       if (!raw) {
-        this.issues = [{ level: "error", text: "Paste a code block or HTML fragment before importing." }];
+        this.issues = [{ level: "error", text: "Paste a generated tool code block or HTML fragment before importing." }];
         this.statusMessage = "Import blocked.";
         this.saveState();
         return;
@@ -2890,16 +2920,16 @@ function createStudioApp() {
       this.importedTheme = result.themeId;
       this.importedScheme = result.schemeId;
       this.importedAppTitle = result.meta.title;
-      if (!this.appName.trim()) {
+      if (!this.currentEditingId || !this.appName.trim()) {
         this.appName = result.meta.title;
       }
-      if (!this.appTags.trim() && result.meta.tags.length) {
+      if ((!this.currentEditingId || !this.appTags.trim()) && result.meta.tags.length) {
         this.appTags = result.meta.tags.join(", ");
       }
       this.applyAppTitleToDraft();
       this.applyAppTagsToDraft();
 
-      this.statusMessage = silent ? "Draft loaded." : "Preview updated.";
+      this.statusMessage = silent ? "Example tool loaded." : "Tool preview updated.";
       this.saveState();
     },
 
@@ -3031,7 +3061,7 @@ function createStudioApp() {
     },
 
     wrapWithRoot(innerHtml, themeId = this.selectedTheme, schemeId = this.selectedScheme) {
-      const fallback = "<section class=\"empty-state stack\"><h1>Paste an app to get started.</h1><p class=\"muted\">The preview will render here once you import a response.</p></section>";
+      const fallback = "<section class=\"empty-state stack\"><h1>Paste a tool to get started.</h1><p class=\"muted\">The preview will render here once you import a response.</p></section>";
       return `<main ${APP_MARKER} ${THEME_MARKER}="${themeId}" ${SCHEME_MARKER}="${schemeId}" class="app-shell stack">${innerHtml || fallback}</main>`;
     },
 
@@ -3226,7 +3256,7 @@ function createStudioApp() {
 
     async publishCurrentApp() {
       if (!this.normalizedAppHtml) {
-        this.statusMessage = "Import a draft before publishing.";
+        this.statusMessage = "Import a generated tool before saving.";
         return;
       }
 
@@ -3281,7 +3311,7 @@ function createStudioApp() {
       this.appTags = entry.tags.join(", ");
       this.saveState();
       this.goToLibrary(entry.id);
-      this.statusMessage = existingApp ? `Updated "${entry.title}".` : `Published "${entry.title}" to the library.`;
+      this.statusMessage = existingApp ? `Updated "${entry.title}".` : `Saved "${entry.title}" to the library.`;
     },
 
     async deleteLibraryApp(appId) {

@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Chat2Tool | Alpine App Studio</title>
+    <title>Chat2Tool | Personal Tool Studio</title>
     <meta
       name="description"
-      content="Prompt, copy, paste, preview, and export theme-constrained Alpine.js single-page apps."
+      content="Turn conversations and notes into reusable, theme-constrained Alpine.js tools."
     >
     <link rel="stylesheet" href="./styles.css">
     <script defer src="./app.js"></script>
@@ -16,10 +16,10 @@
     <div class="shell" x-data="studioApp()" x-init="boot()" @keydown.escape.window="closeLibraryModal()">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Alpine Micro App Runtime</p>
-          <h1>Turn your chats into micro-app tools.</h1>
+          <p class="eyebrow">Personal Tool Library</p>
+          <h1>Turn notes and chats into reusable tools.</h1>
           <p class="lede">
-            Create tiny apps to replace your markdown notes
+            Save the useful workflow behind a conversation as a focused interface you can reopen, edit, and use again.
           </p>
         </div>
       </header>
@@ -52,12 +52,12 @@
         </button>
       </nav>
 
-      <main class="workspace studio-workspace" x-show="currentView === 'studio'" x-cloak>
+      <main class="workspace studio-workspace" x-ref="studioWorkspace" x-show="currentView === 'studio'" x-cloak>
         <section class="panel wizard-progress">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Studio Wizard</p>
-              <h2>Move through the studio one step at a time</h2>
+              <p class="eyebrow">Tool Builder</p>
+              <h2>Promote one useful workflow into a saved tool</h2>
             </div>
             <span class="status-pill" x-text="`Step ${currentStudioStepIndex + 1} of ${studioSteps.length}`"></span>
           </div>
@@ -86,8 +86,8 @@
         <section class="panel" x-show="currentStudioStep === 'brief'" x-cloak>
           <div class="panel-head">
             <div>
-              <p class="eyebrow">1. Prompt Setup</p>
-              <h2>Choose how the app should be defined</h2>
+              <p class="eyebrow">1. Source</p>
+              <h2>Choose where this tool comes from</h2>
             </div>
             <span class="status-pill" x-text="activePromptMode.name"></span>
           </div>
@@ -108,35 +108,12 @@
             </template>
           </div>
 
-          <label class="field">
-            <span>App name</span>
-            <input
-              x-model="appName"
-              @input="handleAppNameInput()"
-              placeholder="Example: Retreat Planner"
-            >
-          </label>
-
-          <label class="field">
-            <span>Tags</span>
-            <input
-              x-model="appTags"
-              @input="handleAppTagsInput()"
-              placeholder="Example: planner, team, budget"
-            >
-          </label>
-
-          <!-- <div class="field">
-            <p class="mini-label">Save behavior</p>
-            <p class="muted-copy" x-text="isSaveAsNew ? 'Renaming this edited draft will publish it as a new library app.' : 'Publishing will use this app name in the library.'"></p>
-          </div> -->
-
           <label class="field" x-show="promptMode === 'custom'" x-cloak>
-            <span>App brief</span>
+            <span>Tool brief</span>
             <textarea
               x-model="appBrief"
               rows="7"
-              placeholder="Example: Build a fundraising tracker with milestones, donor notes, and a modal to add pledges."
+              placeholder="Example: Turn my donor notes into a pledge tracker with milestones, follow-ups, and a quick add form."
             ></textarea>
           </label>
 
@@ -144,9 +121,9 @@
             <p class="mini-label">Conversation flow</p>
             <h3>Use the current chat as the requirements source.</h3>
             <p class="muted-copy">
-              The generated prompt tells ChatGPT to distill the active conversation into one useful micro app,
-              keep the scope tight, and ignore side chatter. Paste it into the same conversation you want to turn
-              into an app.
+              The generated prompt asks ChatGPT to distill the active conversation into one working tool,
+              keep the scope tight, and ignore side chatter. Paste it into the same conversation you want to
+              preserve as something usable.
             </p>
           </section>
 
@@ -159,7 +136,7 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">2. Theme + Color Scheme</p>
-              <h2>Choose the visual direction</h2>
+              <h2>Choose how the tool should feel</h2>
             </div>
             <span class="status-pill" x-text="`${currentTheme.name} · ${currentScheme.name}`"></span>
           </div>
@@ -251,8 +228,8 @@
         <section class="panel" x-show="currentStudioStep === 'handoff'" x-cloak>
           <div class="panel-head">
             <div>
-              <p class="eyebrow">3. Copy Prompt + Paste Response</p>
-              <h2>Paste the response and move to preview</h2>
+              <p class="eyebrow">3. Generate Tool</p>
+              <h2>Copy the prompt, then paste the generated tool</h2>
             </div>
             <span class="status-pill" x-text="detectedThemeLabel"></span>
           </div>
@@ -266,22 +243,20 @@
 
           <div class="button-row">
             <button type="button" class="button button-primary" @click="copyPrompt()">Copy Prompt</button>
-            <button type="button" class="button button-secondary" @click="loadExample()">Load Example</button>
+            <button type="button" class="button button-secondary" @click="loadExample()">Load Example Tool</button>
           </div>
 
           <label class="field">
-            <span>ChatGPT response or raw HTML fragment</span>
+            <span>Generated tool response or raw HTML fragment</span>
             <textarea
               x-model="rawResponse"
               @input="handleRawResponseInput()"
               rows="18"
-              placeholder="Paste the single ```html block here."
+              placeholder="Paste the single ```html block from ChatGPT here."
             ></textarea>
           </label>
 
           <div class="button-row">
-            <button type="button" class="button button-secondary" @click="importResponse()">Re-import Now</button>
-            <button type="button" class="button button-secondary" @click="copyPrompt()">Copy Prompt Again</button>
             <button type="button" class="button button-ghost" @click="clearResponse()">Clear</button>
           </div>
 
@@ -299,14 +274,14 @@
         <section class="panel panel-preview" x-show="currentStudioStep === 'preview'" x-cloak>
           <div class="panel-head">
             <div>
-              <p class="eyebrow">4. Edit</p>
-              <h2>Sandboxed editor</h2>
+              <p class="eyebrow">4. Review + Save</p>
+              <h2>Tool workbench</h2>
             </div>
             <span class="status-pill" x-text="publishStateLabel"></span>
           </div>
 
           <div class="preview-toolbar">
-            <p class="preview-copy" x-text="editorEnabled ? 'Edit mode turns the preview into a direct-edit canvas. Tap or click any text or block to select it.' : 'Preview runs inside a sandboxed iframe with Alpine and Lucide preloaded. Exported files keep the same theme framework and icon runtime.'"></p>
+            <p class="preview-copy" x-text="editorEnabled ? 'Edit mode turns the tool preview into a direct-edit canvas. Tap or click any text or block to select it.' : 'The tool runs inside a sandboxed iframe with Alpine and Lucide preloaded. Saved and exported tools keep the same theme framework.'"></p>
 
             <div class="preview-toolbar__controls">
               <div class="preview-toggle-group" role="group" aria-label="Preview editor">
@@ -320,19 +295,46 @@
               </div>
 
               <div class="button-row">
-                <button type="button" class="button button-primary" @click="publishCurrentApp()" x-text="publishButtonLabel"></button>
                 <button type="button" class="button button-primary" @click="downloadExport()">Download HTML</button>
                 <button type="button" class="button button-secondary" @click="copyStandalone()">Copy HTML</button>
               </div>
             </div>
           </div>
 
+          <section class="tool-metadata-panel" x-show="normalizedAppHtml" x-cloak>
+            <div>
+              <p class="mini-label">Library metadata</p>
+              <h3>Name and tag this tool</h3>
+              <p class="muted-copy">Use what ChatGPT inferred or adjust it before saving.</p>
+            </div>
+
+            <div class="tool-metadata-grid">
+              <label class="field">
+                <span>Tool name</span>
+                <input
+                  x-model="appName"
+                  @input="handleAppNameInput()"
+                  placeholder="Example: Retreat Decision Tool"
+                >
+              </label>
+
+              <label class="field">
+                <span>Tags</span>
+                <input
+                  x-model="appTags"
+                  @input="handleAppTagsInput()"
+                  placeholder="Example: planner, decisions, budget"
+                >
+              </label>
+            </div>
+          </section>
+
           <div class="preview-shell" :class="{ 'is-editor-open': editorEnabled }">
             <section class="preview-stage">
               <div class="preview-stage__bar">
                 <div>
                   <p class="mini-label">Canvas</p>
-                  <h3>Editor canvas</h3>
+                  <h3>Tool preview</h3>
                 </div>
               </div>
 
@@ -341,7 +343,7 @@
                   <iframe
                     x-ref="previewFrame"
                     class="preview-frame"
-                    title="Generated Alpine app preview"
+                    title="Generated Alpine tool preview"
                     sandbox="allow-scripts allow-forms allow-modals"
                   ></iframe>
                 </div>
@@ -436,9 +438,10 @@
             <button type="button" class="button button-secondary" :disabled="isFirstStudioStep" @click="previousStudioStep()">
               Previous
             </button>
-            <button type="button" class="button button-primary" :disabled="isLastStudioStep" @click="nextStudioStep()">
+            <button type="button" class="button button-primary" x-show="!isLastStudioStep" @click="nextStudioStep()">
               Next
             </button>
+            <button type="button" class="button button-primary" x-show="isLastStudioStep" x-cloak @click="publishCurrentApp()" x-text="publishButtonLabel"></button>
           </div>
         </section>
       </main>
@@ -448,19 +451,19 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">Library</p>
-              <h2>Published apps</h2>
+              <h2>Saved tools</h2>
             </div>
             <span class="status-pill" x-text="libraryStatusLabel"></span>
           </div>
 
           <div class="library-tools" x-show="publishedApps.length" x-cloak>
             <label class="library-search">
-              <span>Search apps</span>
+              <span>Search tools</span>
               <input
                 type="search"
                 x-model="librarySearch"
                 @input="handleLibrarySearchInput()"
-                placeholder="Search names, tags, summaries, or app text"
+                placeholder="Search names, tags, summaries, or tool text"
               >
             </label>
 
@@ -487,7 +490,15 @@
           <div class="library-layout" x-show="publishedApps.length" x-cloak>
             <aside class="library-list">
               <template x-for="app in filteredLibraryApps" :key="app.id">
-                <article class="library-card" :class="{ 'is-active': activeLibraryId === app.id }">
+                <article
+                  class="library-card"
+                  :class="{ 'is-active': activeLibraryId === app.id }"
+                  role="button"
+                  tabindex="0"
+                  @click="goToLibrary(app.id)"
+                  @keydown.enter.prevent="goToLibrary(app.id)"
+                  @keydown.space.prevent="goToLibrary(app.id)"
+                >
                   <div class="library-card__swatch" :style="`background:${resolveScheme(app.themeId, app.schemeId).gradient}`"></div>
                   <div class="cluster library-card__meta">
                     <span class="status-pill" x-text="`${resolveTheme(app.themeId).name} · ${resolveScheme(app.themeId, app.schemeId).name}`"></span>
@@ -501,14 +512,14 @@
                         type="button"
                         class="tag-chip tag-chip--small"
                         :class="{ 'is-active': isLibraryTagActive(tag) }"
-                        @click="toggleLibraryTag(tag)"
+                        @click.stop="toggleLibraryTag(tag)"
                         x-text="tag"
                       ></button>
                     </template>
                   </div>
                   <div class="button-row">
-                    <button type="button" class="button button-primary" @click="openLibraryApp(app.id)">Open</button>
-                    <button type="button" class="button button-secondary" @click="editLibraryApp(app.id)">Edit</button>
+                    <button type="button" class="button button-primary" @click.stop="openLibraryApp(app.id)">Open</button>
+                    <button type="button" class="button button-secondary" @click.stop="editLibraryApp(app.id)">Edit</button>
                   </div>
                 </article>
               </template>
@@ -523,7 +534,7 @@
               <div class="stack" x-show="activeLibraryApp" x-cloak>
                 <div class="library-viewer__head">
                   <div>
-                    <p class="mini-label">Selected app</p>
+                    <p class="mini-label">Selected tool</p>
                     <h3 x-text="activeLibraryApp?.title"></h3>
                     <p class="muted-copy" x-text="activeLibraryApp?.summary"></p>
                     <div class="tag-row" x-show="activeLibraryApp?.tags?.length" x-cloak>
@@ -540,7 +551,7 @@
                   </div>
                   <div class="button-row" style="margin-bottom: 1rem;">
                     <button type="button" class="button button-primary" @click="openLibraryApp(activeLibraryApp.id)">Open Fullscreen</button>
-                    <button type="button" class="button button-primary" @click="editLibraryApp(activeLibraryApp.id)">Edit In Studio</button>
+                    <button type="button" class="button button-primary" @click="editLibraryApp(activeLibraryApp.id)">Edit Tool</button>
                     <button type="button" class="button button-secondary" @click="downloadLibraryApp(activeLibraryApp.id)">Download</button>
                     <button type="button" class="button button-ghost" @click="deleteLibraryApp(activeLibraryApp.id)">Delete</button>
                   </div>
@@ -549,24 +560,24 @@
                 <iframe
                   x-ref="libraryFrame"
                   class="preview-frame"
-                  title="Published app preview"
+                  title="Saved tool preview"
                   sandbox="allow-scripts allow-forms allow-modals"
                 ></iframe>
               </div>
 
               <div class="library-empty" x-show="!activeLibraryApp" x-cloak>
-                <h3>Pick an app to open it.</h3>
-                <p class="muted-copy">Saved apps render here with the same standalone shell used for export.</p>
+                <h3>Pick a tool to open it.</h3>
+                <p class="muted-copy">Saved tools render here with the same standalone shell used for export.</p>
               </div>
             </section>
           </div>
 
           <div class="library-empty" x-show="!publishedApps.length" x-cloak>
-            <h3>Your library is empty.</h3>
-            <p class="muted-copy">Import a response in the studio and press publish. It will show up here for revisiting and editing.</p>
+            <h3>Your tool library is empty.</h3>
+            <p class="muted-copy">Generate a tool in the studio and save it here for revisiting, editing, and reuse.</p>
             <div class="button-row">
               <button type="button" class="button button-primary" @click="goToStudio()">Back To Studio</button>
-              <button type="button" class="button button-secondary" @click="loadExample()">Load Example Draft</button>
+              <button type="button" class="button button-secondary" @click="loadExample()">Load Example Tool</button>
             </div>
           </div>
         </section>
@@ -577,7 +588,7 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">Settings</p>
-              <h2>App theme</h2>
+              <h2>Studio theme</h2>
             </div>
             <span class="status-pill" x-text="`${currentAppTheme.name} · ${currentAppScheme.name}`"></span>
           </div>
@@ -644,14 +655,14 @@
           <header class="library-modal__header" :class="{ 'is-expanded': isLibraryHeaderExpanded }">
             <div class="library-modal__header-row">
               <div class="library-modal__header-title">
-                <h2 x-text="activeLibraryApp?.title || 'Published app'"></h2>
+                <h2 x-text="activeLibraryApp?.title || 'Saved tool'"></h2>
                 <button
                   type="button"
                   class="library-modal__toggle"
                   @click="isLibraryHeaderExpanded = !isLibraryHeaderExpanded"
                   :aria-expanded="isLibraryHeaderExpanded.toString()"
                   aria-controls="library-modal-meta"
-                  aria-label="Toggle app metadata"
+                  aria-label="Toggle tool metadata"
                 >
                   <span class="library-modal__toggle-icon" aria-hidden="true"></span>
                 </button>
@@ -668,15 +679,15 @@
               x-show="isLibraryHeaderExpanded"
               x-cloak
             >
-              <p class="mini-label">Library app</p>
-              <p class="muted-copy" x-text="activeLibraryApp?.summary || 'Standalone viewer'"></p>
+              <p class="mini-label">Library tool</p>
+              <p class="muted-copy" x-text="activeLibraryApp?.summary || 'Standalone tool viewer'"></p>
             </div>
           </header>
 
           <iframe
             x-ref="libraryModalFrame"
             class="library-modal__frame"
-            title="Fullscreen published app preview"
+            title="Fullscreen saved tool preview"
             sandbox="allow-scripts allow-forms allow-modals"
           ></iframe>
         </section>

@@ -720,6 +720,31 @@ textarea[readonly] {
   align-items: start;
 }
 
+.tool-metadata-panel {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0 0 var(--space-md);
+  padding: 1rem;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--panel-bg-strong) 38%, var(--panel-bg));
+}
+
+.tool-metadata-panel h3 {
+  margin: 0 0 0.35rem;
+  font-family: var(--display-font);
+}
+
+.tool-metadata-grid {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: minmax(220px, 0.85fr) minmax(260px, 1.15fr);
+}
+
+.tool-metadata-grid .field {
+  margin: 0;
+}
+
 .preview-copy,
 .muted-copy {
   color: var(--page-muted);
@@ -1000,11 +1025,17 @@ textarea[readonly] {
 .library-card {
   overflow: hidden;
   padding: 1rem;
+  cursor: pointer;
 }
 
 .library-card.is-active {
   border-color: color-mix(in srgb, var(--accent) 38%, var(--panel-border));
   box-shadow: var(--panel-shadow);
+}
+
+.library-card:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  outline-offset: 3px;
 }
 
 .library-card__swatch {
@@ -1360,6 +1391,7 @@ textarea[readonly] {
   .scheme-grid,
   .theme-preview-panel__layout,
   .preview-toolbar,
+  .tool-metadata-grid,
   .preview-shell,
   .library-layout,
   .reference-schemes {
