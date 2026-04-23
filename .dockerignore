@@ -1,5 +1,9 @@
+.git
+data
 node_modules
 dist
 .astro
 npm-debug.log*
-.git
+.env
+.env.*
+.DS_Store

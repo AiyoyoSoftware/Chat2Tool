@@ -5,7 +5,7 @@ const path = require("path");
 const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 9944);
 const STATIC_ROOT = __dirname;
-const DATA_DIR = path.resolve(process.env.LLASTRO_DATA_DIR || path.join(__dirname, "data"));
+const DATA_DIR = path.resolve(process.env.CHAT2TOOL_DATA_DIR || process.env.LLASTRO_DATA_DIR || path.join(__dirname, "data"));
 const LIBRARY_FILE = path.join(DATA_DIR, "library.json");
 
 const MIME_TYPES = {
@@ -68,7 +68,7 @@ function sanitizeLibrary(library) {
       const now = new Date().toISOString();
       return {
         id: entry.id,
-        title: typeof entry.title === "string" && entry.title.trim() ? entry.title.trim() : "Untitled App",
+        title: typeof entry.title === "string" && entry.title.trim() ? entry.title.trim() : "Untitled Tool",
         summary: typeof entry.summary === "string" ? entry.summary.trim().slice(0, 180) : "",
         tags: normalizeTags(entry.tags),
         themeId: typeof entry.themeId === "string" ? entry.themeId : "",
@@ -200,6 +200,6 @@ const server = http.createServer(async (request, response) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`llastro listening on http://${HOST}:${PORT}`);
+  console.log(`Chat2Tool listening on http://${HOST}:${PORT}`);
   console.log(`Library storage path: ${LIBRARY_FILE}`);
 });

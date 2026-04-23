@@ -1,11 +1,11 @@
 services:
-  llastro:
+  chat2tool:
     build:
       context: .
     ports:
       - "9944:9944"
     volumes:
-      - llastro-data:/data
+      - chat2tool-data:/data
 
 volumes:
-  llastro-data:
+  chat2tool-data:

@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository.
 
 ## Project Overview
 
-`Chat2Tool` is a static studio for generating, previewing, publishing, reopening, and exporting theme-constrained Alpine.js micro-apps. It has no build step. A small Node HTTP server serves static files and persists the published app library to disk.
+`Chat2Tool` is a static studio for turning conversations and notes into reusable, theme-constrained Alpine.js tools. It has no build step. A small Node HTTP server serves static files and persists the saved tool library to disk.
 
 Core files:
 
@@ -46,7 +46,7 @@ Docker path:
 docker compose up --build
 ```
 
-The Docker container stores published apps in `/data/library.json`, persisted through the `llastro-data` named volume.
+The Docker container stores saved tools in `/data/library.json`, persisted through the `chat2tool-data` named volume.
 
 ## Architecture Notes
 
@@ -54,11 +54,11 @@ The Docker container stores published apps in `/data/library.json`, persisted th
 - Browser libraries are loaded from `vendor/` to keep previews and exports independent of network requests.
 - `server.js` uses Node's built-in `http` module and `fs/promises`; preserve the no-framework server unless the user explicitly asks for a server stack change.
 - The library API is intentionally small: `GET /api/library` and `PUT /api/library`.
-- Published app data is sanitized on read and write. Preserve that defensive boundary when changing persistence behavior.
+- Saved tool data is sanitized on read and write. Preserve that defensive boundary when changing persistence behavior.
 
 ## Generated App Contract
 
-Generated micro-app HTML must keep the host contract intact:
+Generated tool HTML must keep the host contract intact:
 
 - Exactly one app root with `data-llastro-app`.
 - Exactly one valid `data-llastro-theme`.

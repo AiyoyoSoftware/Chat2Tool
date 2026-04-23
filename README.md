@@ -4,6 +4,12 @@ Chat2Tool is a local studio for turning conversations, notes, and rough thinking
 
 It is designed as an active alternative to notebook-first workflows in Joplin, Obsidian, or plain markdown. Instead of saving a note that you have to reread and mentally reassemble later, Chat2Tool helps you save the workflow itself: a focused one-page Alpine.js tool that can be reopened, edited, searched, exported, and used again.
 
+## Alpha Status
+
+This is a `0.1` alpha release. The core local workflow works, but the project is still early. Expect rough edges around generated output quality, browser quirks, and editing affordances.
+
+Good alpha feedback includes broken imports, confusing wizard steps, weak generated-tool prompts, theme issues, accessibility gaps, and examples of notes or conversations that should become tools but do not yet produce useful results.
+
 ## What It Is For
 
 - Distilling a useful ChatGPT conversation into one working personal tool.
@@ -39,6 +45,12 @@ Generated tools are intentionally constrained so they remain portable, safe to p
 - Lucide icon placeholders are supported through the host runtime using `data-lucide="icon-name"`.
 - Semantic HTML plus a small helper-class set gives LLM output a consistent visual language.
 
+## Safety Model
+
+Generated tools are HTML and Alpine.js produced by an LLM. Chat2Tool strips external scripts, custom CSS, and external stylesheets, then previews saved tools in sandboxed iframes. These guardrails are intended for local experimentation and are not a guarantee that hostile generated code is safe.
+
+Only import generated HTML you are comfortable running locally. Do not expose the bundled server on untrusted networks; the alpha release has no authentication.
+
 ## Theme System
 
 Themes change more than color. Each one shifts typography, radii, shadow style, surface treatment, and component feel so saved tools can match different kinds of work without custom CSS.
@@ -60,6 +72,8 @@ Helper classes available to generated tools:
 
 No build step is required. The bundled Node server serves the static studio and persists the local tool library to disk.
 
+Requires Node.js 20 or newer.
+
 ```bash
 npm run dev
 ```
@@ -80,7 +94,7 @@ docker compose up --build
 
 Then open `http://localhost:9944`.
 
-Saved tools are stored in `/data/library.json` inside the container and persisted through the named Docker volume `llastro-data`.
+Saved tools are stored in `/data/library.json` inside the container and persisted through the named Docker volume `chat2tool-data`.
 
 ## Generated Tool Shape
 
@@ -108,3 +122,7 @@ The host injects:
 - `app.js`: Alpine studio logic
 - `server.js`: static file host plus the filesystem-backed library API
 - `Dockerfile` and `docker-compose.yml`: self-hosting path
+
+## License
+
+MIT

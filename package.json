@@ -1,11 +1,22 @@
 {
-  "name": "llastro",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Prompt-copy-paste studio for theme-constrained Alpine.js mini apps.",
+  "name": "chat2tool",
+  "version": "0.1.0-alpha.0",
+  "description": "Local studio for turning conversations and notes into reusable Alpine.js tools.",
+  "license": "MIT",
+  "keywords": [
+    "alpinejs",
+    "local-first",
+    "personal-tools",
+    "pkm",
+    "chatgpt",
+    "static-app"
+  ],
   "scripts": {
     "dev": "PORT=9944 node server.js",
     "serve": "PORT=9944 node server.js",
     "check": "node --check app.js && node --check server.js"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

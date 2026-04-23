@@ -3,7 +3,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 ENV PORT=9944
-ENV LLASTRO_DATA_DIR=/data
+ENV CHAT2TOOL_DATA_DIR=/data
 
 RUN mkdir -p /data
 
