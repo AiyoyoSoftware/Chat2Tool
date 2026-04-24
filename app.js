@@ -10,10 +10,9 @@ const LIBRARY_API_PATH = "/api/library";
 const LIBRARY_STORAGE_AUTO = "auto";
 const LIBRARY_STORAGE_API = "api";
 const LIBRARY_STORAGE_LOCAL = "local";
-const PUBLIC_APP_URL = "https://aiyoyosoftware.github.io/Chat2Tool";
-const SHARED_IMPORT_ROUTE = "/import";
+const SHARED_IMPORT_ROUTE = "/i";
 const SHARED_IMPORT_REDIRECT_PARAM = "llastro-route";
-const SHARE_SPEC_VERSION = 1;
+const SHARE_COMPRESSION_FORMAT = "deflate";
 const ASSET_STAMP = typeof window !== "undefined" ? String(window.__LLASTRO_ASSET_STAMP || "") : "";
 const ALPINE_RUNTIME_PATH = "./vendor/alpinejs.min.js";
 const LUCIDE_RUNTIME_PATH = "./vendor/lucide.min.js";
@@ -657,7 +656,7 @@ async function compressTextToBase64Url(value) {
     throw new Error("CompressionStream is unavailable.");
   }
 
-  const stream = new Blob([String(value || "")]).stream().pipeThrough(new CompressionStream("gzip"));
+  const stream = new Blob([String(value || "")]).stream().pipeThrough(new CompressionStream(SHARE_COMPRESSION_FORMAT));
   const buffer = await new Response(stream).arrayBuffer();
   return bytesToBase64Url(new Uint8Array(buffer));
 }
@@ -668,7 +667,7 @@ async function decompressBase64UrlToText(value) {
   }
 
   const bytes = base64UrlToBytes(value);
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream(SHARE_COMPRESSION_FORMAT));
   return new Response(stream).text();
 }
 
@@ -683,7 +682,7 @@ function getHostedBasePath(pathname = window.location.pathname) {
 }
 
 function getCanonicalAppPath(pathname = window.location.pathname) {
-  const normalized = String(pathname || "/").replace(/\/import(?:\/[^/]+)?\/?$/, "/");
+  const normalized = String(pathname || "/").replace(/\/(?:import|i)(?:\/[^/]+)?\/?$/, "/");
   return normalized || "/";
 }
 
@@ -693,36 +692,42 @@ function getAssetBasePath(pathname = window.location.pathname) {
     .replace(/\/$/, "");
 }
 
+function getShareBaseUrl(pathname = window.location.pathname) {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const canonicalPath = getCanonicalAppPath(pathname)
+    .replace(/\/index\.html$/, "/")
+    .replace(/\/$/, "");
+
+  return `${window.location.origin}${canonicalPath}`;
+}
+
 function getSharedImportTokenFromPath(pathname = window.location.pathname) {
-  const match = String(pathname || "").match(/(?:^|\/)import\/([^/?#]+)/);
+  const match = String(pathname || "").match(/(?:^|\/)(?:import|i)\/([^/?#]+)/);
   return match ? match[1] : "";
 }
 
 function normalizeSharedAppSpec(payload) {
-  if (!payload || payload.type !== "chat2tool-share" || Number(payload.version) !== SHARE_SPEC_VERSION) {
+  const html = typeof payload === "string" ? payload.trim() : "";
+  if (!html) {
     return null;
   }
 
-  const app = payload.app;
-  if (!app || typeof app.html !== "string" || !app.html.trim()) {
-    return null;
-  }
-
-  const themeId = normalizeThemeId(app.themeId) || "";
-  const schemeId = themeId ? normalizeSchemeId(themeId, app.schemeId) : "";
+  const meta = extractAppMetadata(html);
 
   return {
-    version: SHARE_SPEC_VERSION,
-    exportedAt: typeof payload.exportedAt === "string" ? payload.exportedAt : "",
-    exportedFrom: typeof payload.exportedFrom === "string" ? payload.exportedFrom.trim().slice(0, 240) : "",
+    exportedAt: "",
+    exportedFrom: "",
     app: {
-      title: typeof app.title === "string" && app.title.trim() ? app.title.trim().slice(0, 90) : "Shared Tool",
-      summary: typeof app.summary === "string" ? app.summary.trim().slice(0, 180) : "",
-      tags: normalizeTags(app.tags),
-      themeId,
-      schemeId,
-      source: typeof app.source === "string" && app.source.trim() ? app.source : app.html,
-      html: app.html
+      title: meta.title,
+      summary: meta.summary,
+      tags: meta.tags,
+      themeId: meta.themeId,
+      schemeId: meta.schemeId,
+      source: html,
+      html
     }
   };
 }
@@ -3833,8 +3838,7 @@ function createStudioApp() {
 
       try {
         const rawSpec = await decompressBase64UrlToText(token);
-        const payload = JSON.parse(rawSpec);
-        const spec = normalizeSharedAppSpec(payload);
+        const spec = normalizeSharedAppSpec(rawSpec);
         if (!spec) {
           throw new Error("Shared import payload is invalid.");
         }
@@ -4346,27 +4350,7 @@ function createStudioApp() {
         return null;
       }
 
-      const meta = extractAppMetadata(
-        entry.html,
-        entry.themeId || this.importedTheme || this.selectedTheme,
-        entry.schemeId || this.importedScheme || this.selectedScheme
-      );
-
-      return {
-        type: "chat2tool-share",
-        version: SHARE_SPEC_VERSION,
-        exportedAt: new Date().toISOString(),
-        exportedFrom: `${window.location.origin}${getCanonicalAppPath(window.location.pathname)}`,
-        app: {
-          title: typeof entry.title === "string" && entry.title.trim() ? entry.title.trim() : meta.title,
-          summary: typeof entry.summary === "string" && entry.summary.trim() ? entry.summary.trim() : meta.summary,
-          tags: normalizeTags(entry.tags?.length ? entry.tags : meta.tags),
-          themeId: meta.themeId,
-          schemeId: meta.schemeId,
-          source: typeof entry.source === "string" && entry.source.trim() ? entry.source : entry.html,
-          html: entry.html
-        }
-      };
+      return entry.html;
     },
 
     buildCurrentShareSpec() {
@@ -4397,8 +4381,8 @@ function createStudioApp() {
         throw new Error("Share spec is missing.");
       }
 
-      const token = await compressTextToBase64Url(JSON.stringify(spec));
-      return `${PUBLIC_APP_URL}${SHARED_IMPORT_ROUTE}/${token}`;
+      const token = await compressTextToBase64Url(spec);
+      return `${getShareBaseUrl()}${SHARED_IMPORT_ROUTE}/${token}`;
     },
 
     async copyPrompt() {

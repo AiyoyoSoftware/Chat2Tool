@@ -17,7 +17,7 @@
         window.__LLASTRO_ASSET_STAMP = stamp;
         const pathname = window.location.pathname || "/";
         const appBase = pathname
-          .replace(/\/import(?:\/[^/]+)?\/?$/, "/")
+          .replace(/\/(?:import|i)(?:\/[^/]+)?\/?$/, "/")
           .replace(/\/index\.html$/, "/")
           .replace(/\/$/, "");
         const assetPath = (path) => `${appBase}${path}`;

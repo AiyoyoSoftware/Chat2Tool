@@ -168,6 +168,7 @@ async function handleApi(request, response, pathname) {
 
 async function handleStatic(request, response, pathname) {
   const staticPath = pathname === "/import" || pathname.startsWith("/import/")
+    || pathname === "/i" || pathname.startsWith("/i/")
     ? "/index.html"
     : pathname;
   const filePath = resolveStaticPath(staticPath);
