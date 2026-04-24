@@ -35,9 +35,9 @@
       <header class="topbar">
         <div>
           <p class="eyebrow">Personal Tool Library</p>
-          <h1>Turn notes and chats into reusable tools.</h1>
+          <h1>Chat2Tool</h1>
           <p class="lede">
-            Save the useful workflow behind a conversation as a focused interface you can reopen, edit, and use again.
+            Turn notes and chats into reusable tools.
           </p>
         </div>
       </header>
@@ -185,7 +185,7 @@
                 type="button"
                 class="scheme-card"
                 :class="{ 'is-active': selectedScheme === scheme.id }"
-                :style="`--scheme-gradient:${scheme.gradient}; --scheme-accent:${currentTheme.accent};`"
+                :style="resolveSchemeCardStyle(currentTheme.id, scheme.id, currentSelectedCustomColor)"
                 @click="selectScheme(scheme.id)"
               >
                 <div class="scheme-card__swatch"></div>
@@ -194,6 +194,30 @@
               </button>
             </template>
           </div>
+
+          <section class="custom-color-panel" x-show="selectedScheme === 'customized'" x-cloak>
+            <div class="custom-color-panel__head">
+              <div>
+                <p class="mini-label">Seed color</p>
+                <h3>Choose one color</h3>
+                <p class="muted-copy" x-text="describeCustomScheme(currentTheme.id)"></p>
+              </div>
+              <span class="status-pill" x-text="currentSelectedCustomColor"></span>
+            </div>
+
+            <label class="field field--color">
+              <span>Accent seed</span>
+              <div class="color-input-row">
+                <input
+                  type="color"
+                  class="color-input"
+                  :value="currentSelectedCustomColor"
+                  @input="updateSelectedCustomColor($event.target.value)"
+                >
+                <strong x-text="currentSelectedCustomColor"></strong>
+              </div>
+            </label>
+          </section>
 
           <section class="theme-preview-panel" x-ref="themePreviewPanel">
             <div class="theme-preview-panel__head">
@@ -208,7 +232,7 @@
             <iframe
               class="reference-preview theme-preview-frame"
               :title="`${currentTheme.name} ${currentScheme.name} semantic preview`"
-              :srcdoc="currentStudioStep === 'theme' ? buildReferencePreview(currentTheme.id, currentScheme.id) : ''"
+              :srcdoc="currentStudioStep === 'theme' ? buildReferencePreview(currentTheme.id, currentScheme.id, currentSelectedCustomColor) : ''"
               loading="lazy"
               sandbox="allow-scripts allow-forms allow-modals"
             ></iframe>
@@ -612,7 +636,7 @@
                 type="button"
                 class="scheme-card"
                 :class="{ 'is-active': appScheme === scheme.id }"
-                :style="`--scheme-gradient:${scheme.gradient}; --scheme-accent:${resolveHostSchemeAccent(currentAppTheme.id, scheme.id)};`"
+                :style="resolveSchemeCardStyle(currentAppTheme.id, scheme.id, currentAppCustomColor)"
                 @click="selectAppScheme(scheme.id)"
               >
                 <div class="scheme-card__swatch"></div>
@@ -621,6 +645,30 @@
               </button>
             </template>
           </div>
+
+          <section class="custom-color-panel" x-show="appScheme === 'customized'" x-cloak>
+            <div class="custom-color-panel__head">
+              <div>
+                <p class="mini-label">Seed color</p>
+                <h3>Customize the studio shell</h3>
+                <p class="muted-copy" x-text="describeCustomScheme(currentAppTheme.id)"></p>
+              </div>
+              <span class="status-pill" x-text="currentAppCustomColor"></span>
+            </div>
+
+            <label class="field field--color">
+              <span>Accent seed</span>
+              <div class="color-input-row">
+                <input
+                  type="color"
+                  class="color-input"
+                  :value="currentAppCustomColor"
+                  @input="updateAppCustomColor($event.target.value)"
+                >
+                <strong x-text="currentAppCustomColor"></strong>
+              </div>
+            </label>
+          </section>
 
           <section class="settings-preview">
             <div>

@@ -3,6 +3,7 @@
 }
 
 [data-llastro-app] {
+  --ll-color-scheme: light;
   --ll-page-bg: #f6f1e7;
   --ll-page-bg-deep: #ece1cf;
   --ll-surface: rgba(255, 250, 242, 0.95);
@@ -49,13 +50,15 @@
   );
   --ll-overlay-border: var(--ll-border);
   --ll-dialog-backdrop: rgba(18, 31, 39, 0.35);
+  --ll-app-bg:
+    radial-gradient(circle at top left, var(--ll-accent-soft), transparent 22rem),
+    linear-gradient(180deg, var(--ll-page-bg) 0%, var(--ll-page-bg-deep) 100%);
+  color-scheme: var(--ll-color-scheme, light);
   box-sizing: border-box;
   display: block;
   min-height: 100vh;
   padding: clamp(1rem, 2vw, 2rem);
-  background:
-    radial-gradient(circle at top left, var(--ll-accent-soft), transparent 22rem),
-    linear-gradient(180deg, var(--ll-page-bg) 0%, var(--ll-page-bg-deep) 100%);
+  background: var(--ll-app-bg);
   color: var(--ll-text);
   font-family: var(--ll-font-ui);
   line-height: 1.55;
@@ -109,7 +112,7 @@
   --ll-spotlight-fill: linear-gradient(180deg, #e8f1ff 0%, #e8f1ff 100%);
   --ll-secondary-fill: var(--ll-surface-strong);
   --ll-secondary-border: var(--ll-border);
-  background: linear-gradient(180deg, var(--ll-page-bg) 0%, var(--ll-page-bg-deep) 100%);
+  --ll-app-bg: linear-gradient(180deg, var(--ll-page-bg) 0%, var(--ll-page-bg-deep) 100%);
 }
 
 [data-llastro-app][data-llastro-theme="material2"] {
@@ -141,7 +144,7 @@
   --ll-button-ink: #ffffff;
   --ll-hero-fill: linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%);
   --ll-spotlight-fill: linear-gradient(180deg, #edf3ff 0%, #ffffff 100%);
-  background: linear-gradient(180deg, var(--ll-page-bg) 0%, var(--ll-page-bg-deep) 100%);
+  --ll-app-bg: linear-gradient(180deg, var(--ll-page-bg) 0%, var(--ll-page-bg-deep) 100%);
 }
 
 [data-llastro-app][data-llastro-theme="neumorph"] {
@@ -172,7 +175,7 @@
 }
 
 [data-llastro-app][data-llastro-theme="glass"] {
-  color-scheme: light;
+  --ll-color-scheme: light;
   --ll-page-bg: #c7ddff;
   --ll-page-bg-deep: #f0b6ff;
   --ll-surface: rgba(255, 255, 255, 0.2);
@@ -202,7 +205,7 @@
   --ll-secondary-fill: color-mix(in srgb, var(--ll-surface-strong) 68%, transparent);
   --ll-secondary-border: color-mix(in srgb, white 62%, var(--ll-accent) 38%);
   --ll-overlay-border: color-mix(in srgb, white 78%, var(--ll-accent) 22%);
-  background:
+  --ll-app-bg:
     radial-gradient(circle at 15% 10%, rgba(255, 255, 255, 0.75), transparent 20rem),
     radial-gradient(circle at 85% 0%, rgba(164, 94, 255, 0.35), transparent 22rem),
     linear-gradient(135deg, #8fd3ff 0%, #bca2ff 52%, #ffb7df 100%);
@@ -237,12 +240,12 @@
   --ll-button-ink: #111111;
   --ll-hero-fill: linear-gradient(180deg, #fff3cb 0%, #ffe59b 100%);
   --ll-spotlight-fill: linear-gradient(180deg, #ffd8cb 0%, #fff1db 100%);
-  background:
+  --ll-app-bg:
     linear-gradient(180deg, #ffe24e 0%, #ffbf59 100%);
 }
 
 [data-llastro-app][data-llastro-theme="liquid"] {
-  color-scheme: dark;
+  --ll-color-scheme: dark;
   --ll-page-bg: #09101f;
   --ll-page-bg-deep: #050914;
   --ll-surface: rgba(17, 24, 46, 0.6);
@@ -286,7 +289,7 @@
   --ll-spotlight-fill:
     radial-gradient(circle at top, rgba(89, 162, 255, 0.2), transparent 18rem),
     linear-gradient(135deg, rgba(24, 31, 61, 0.86), rgba(9, 13, 28, 0.9));
-  background:
+  --ll-app-bg:
     radial-gradient(circle at 10% 10%, rgba(124, 92, 255, 0.24), transparent 22rem),
     radial-gradient(circle at 90% 0%, rgba(56, 189, 248, 0.2), transparent 24rem),
     radial-gradient(circle at 50% 100%, rgba(17, 197, 255, 0.08), transparent 26rem),
@@ -307,7 +310,7 @@
   --ll-accent-strong: #a9461e;
   --ll-accent-soft: rgba(232, 102, 49, 0.14);
   --ll-button-fill: linear-gradient(180deg, #e86631 0%, #e86631 100%);
-  background: linear-gradient(180deg, var(--ll-page-bg) 0%, var(--ll-page-bg-deep) 100%);
+  --ll-app-bg: linear-gradient(180deg, var(--ll-page-bg) 0%, var(--ll-page-bg-deep) 100%);
 }
 
 [data-llastro-app][data-llastro-theme="flat"][data-llastro-scheme="mint"] {
@@ -324,7 +327,7 @@
   --ll-accent-strong: #0d6754;
   --ll-accent-soft: rgba(19, 151, 123, 0.14);
   --ll-button-fill: linear-gradient(180deg, #13977b 0%, #13977b 100%);
-  background: linear-gradient(180deg, var(--ll-page-bg) 0%, var(--ll-page-bg-deep) 100%);
+  --ll-app-bg: linear-gradient(180deg, var(--ll-page-bg) 0%, var(--ll-page-bg-deep) 100%);
 }
 
 [data-llastro-app][data-llastro-theme="material2"][data-llastro-scheme="teal"] {
@@ -403,7 +406,7 @@
   --ll-accent-soft: rgba(255, 111, 97, 0.16);
   --ll-shadow: 0 18px 44px rgba(169, 88, 109, 0.18);
   --ll-shadow-strong: 0 26px 62px rgba(169, 88, 109, 0.22);
-  background:
+  --ll-app-bg:
     radial-gradient(circle at 15% 10%, rgba(255, 247, 232, 0.76), transparent 20rem),
     radial-gradient(circle at 85% 0%, rgba(255, 114, 174, 0.34), transparent 22rem),
     linear-gradient(135deg, #ffc189 0%, #ff9ccc 54%, #ff7ea8 100%);
@@ -419,7 +422,7 @@
   --ll-accent-soft: rgba(0, 125, 156, 0.16);
   --ll-shadow: 0 18px 44px rgba(58, 103, 152, 0.18);
   --ll-shadow-strong: 0 26px 62px rgba(58, 103, 152, 0.22);
-  background:
+  --ll-app-bg:
     radial-gradient(circle at 15% 10%, rgba(245, 255, 255, 0.8), transparent 20rem),
     radial-gradient(circle at 85% 0%, rgba(74, 182, 255, 0.3), transparent 22rem),
     linear-gradient(135deg, #8ff1ff 0%, #79d2ff 52%, #9fb1ff 100%);
@@ -440,7 +443,7 @@
   --ll-accent-strong: #111111;
   --ll-accent-soft: rgba(34, 81, 255, 0.18);
   --ll-button-fill: linear-gradient(180deg, #2251ff 0%, #4f78ff 100%);
-  background: linear-gradient(180deg, #8fc1ff 0%, #4f78ff 100%);
+  --ll-app-bg: linear-gradient(180deg, #8fc1ff 0%, #4f78ff 100%);
 }
 
 [data-llastro-app][data-llastro-theme="brutal"][data-llastro-scheme="acid"] {
@@ -458,7 +461,7 @@
   --ll-accent-strong: #111111;
   --ll-accent-soft: rgba(106, 165, 29, 0.18);
   --ll-button-fill: linear-gradient(180deg, #6aa51d 0%, #96dc2e 100%);
-  background: linear-gradient(180deg, #d7ff59 0%, #96dc2e 100%);
+  --ll-app-bg: linear-gradient(180deg, #d7ff59 0%, #96dc2e 100%);
 }
 
 [data-llastro-app][data-llastro-theme="liquid"][data-llastro-scheme="cosmic"] {
@@ -482,7 +485,7 @@
   --ll-spotlight-fill:
     radial-gradient(circle at top, rgba(79, 213, 214, 0.18), transparent 18rem),
     linear-gradient(135deg, rgba(11, 35, 55, 0.86), rgba(6, 14, 27, 0.9));
-  background:
+  --ll-app-bg:
     radial-gradient(circle at 10% 10%, rgba(74, 182, 255, 0.22), transparent 22rem),
     radial-gradient(circle at 90% 0%, rgba(79, 213, 214, 0.18), transparent 24rem),
     radial-gradient(circle at 50% 100%, rgba(152, 255, 239, 0.08), transparent 26rem),
@@ -510,7 +513,7 @@
   --ll-spotlight-fill:
     radial-gradient(circle at top, rgba(255, 138, 99, 0.18), transparent 18rem),
     linear-gradient(135deg, rgba(47, 11, 32, 0.86), rgba(12, 12, 25, 0.9));
-  background:
+  --ll-app-bg:
     radial-gradient(circle at 10% 10%, rgba(255, 106, 160, 0.22), transparent 22rem),
     radial-gradient(circle at 90% 0%, rgba(255, 138, 99, 0.18), transparent 24rem),
     radial-gradient(circle at 50% 100%, rgba(255, 84, 132, 0.08), transparent 26rem),
@@ -582,14 +585,6 @@
   margin-block-start: calc(var(--ll-flow-space) * 0.72);
 }
 
-[data-llastro-app] :where(*):not(:is(.stack, .split, .card-grid, .cluster, .toolbar, .actions)) > :is(.hero, .spotlight, header, footer, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) + :is(.hero, .spotlight, header, footer, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
-  margin-block-start: calc(var(--ll-flow-space) * 0.9);
-}
-
-[data-llastro-app] .stack > :is(.hero, .spotlight, header, footer, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) + :is(.hero, .spotlight, header, footer, section, article, aside, nav, form, fieldset, dialog, .panel, .card, .frame, .empty-state) {
-  margin-block-start: calc(var(--ll-flow-space) * 0.42);
-}
-
 [data-llastro-app] fieldset + fieldset {
   margin-block-start: calc(var(--ll-flow-space) * 1.15);
 }
@@ -647,10 +642,6 @@
   border-radius: var(--ll-radius-lg);
   background: var(--ll-surface);
   box-shadow: var(--ll-shadow);
-}
-
-[data-llastro-app] section {
-  margin-block: max(calc(var(--ll-flow-space) * 0.8), 0.85rem);
 }
 
 [data-llastro-app] .hero {

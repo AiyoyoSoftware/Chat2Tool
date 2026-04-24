@@ -711,6 +711,69 @@ textarea[readonly] {
   font-size: 0.86rem;
 }
 
+.custom-color-panel {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: var(--space-md);
+  padding: 0.95rem;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--panel-bg-strong) 38%, var(--panel-bg));
+}
+
+.custom-color-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.custom-color-panel__head h3 {
+  margin: 0 0 0.25rem;
+  font-family: var(--display-font);
+}
+
+.field--color {
+  margin: 0;
+}
+
+.color-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  background: var(--panel-bg);
+}
+
+.color-input-row strong {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.color-input {
+  width: 3.2rem;
+  min-width: 3.2rem;
+  height: 2.4rem;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 4px);
+  background: transparent;
+  cursor: pointer;
+}
+
+.color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-input::-webkit-color-swatch,
+.color-input::-moz-color-swatch {
+  border: 1px solid color-mix(in srgb, var(--page-ink) 14%, transparent);
+  border-radius: calc(var(--radius-md) - 4px);
+}
+
 .theme-preview-panel,
 .preview-toolbar,
 .theme-reference {

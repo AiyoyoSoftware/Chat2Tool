@@ -1,6 +1,9 @@
 const APP_MARKER = "data-llastro-app";
 const THEME_MARKER = "data-llastro-theme";
 const SCHEME_MARKER = "data-llastro-scheme";
+const CUSTOM_COLOR_MARKER = "data-llastro-custom-color";
+const CUSTOM_SCHEME_ID = "customized";
+const DEFAULT_CUSTOM_COLOR = "#5b6cff";
 const STORAGE_KEY = "llastro-studio-v2";
 const LIBRARY_KEY = "llastro-library-v1";
 const LIBRARY_API_PATH = "/api/library";
@@ -217,6 +220,31 @@ const THEMES = [
   }
 ];
 
+const CUSTOM_SCHEME_THEORY = {
+  flat: "Analogous tints and crisp contrast derived from one accent.",
+  material2: "A balanced analogous palette with softer supporting tones.",
+  neumorph: "A softened monochrome palette with gentle tonal lift.",
+  glass: "Split-complementary backdrops with a frosted accent core.",
+  brutal: "Complementary contrast with loud blocks and hard edges.",
+  liquid: "Triadic glow on a dark cinematic surface."
+};
+
+THEMES.forEach((theme) => {
+  if (theme.schemes.some((scheme) => scheme.id === CUSTOM_SCHEME_ID)) {
+    return;
+  }
+
+  theme.schemes = [
+    ...theme.schemes,
+    {
+      id: CUSTOM_SCHEME_ID,
+      name: "Customized",
+      summary: CUSTOM_SCHEME_THEORY[theme.id] || "Theme-aware palette generated from one chosen color.",
+      gradient: "linear-gradient(135deg, rgba(229, 235, 255, 1), rgba(205, 217, 255, 1))"
+    }
+  ];
+});
+
 const LEGACY_THEME_ALIASES = {
   atelier: "glass",
   signal: "material2",
@@ -401,6 +429,576 @@ const HOST_SCHEME_TOKENS = {
     }
   }
 };
+
+const CUSTOM_THEME_STYLE_PROPERTIES = [
+  "--ll-color-scheme",
+  "--ll-app-bg",
+  "--ll-page-bg",
+  "--ll-page-bg-deep",
+  "--ll-surface",
+  "--ll-surface-strong",
+  "--ll-surface-muted",
+  "--ll-surface-ghost",
+  "--ll-border",
+  "--ll-border-strong",
+  "--ll-text",
+  "--ll-muted",
+  "--ll-accent",
+  "--ll-accent-strong",
+  "--ll-accent-soft",
+  "--ll-shadow",
+  "--ll-shadow-strong",
+  "--ll-input-bg",
+  "--ll-button-fill",
+  "--ll-button-ink",
+  "--ll-hero-fill",
+  "--ll-spotlight-fill",
+  "--ll-secondary-fill",
+  "--ll-secondary-border",
+  "--ll-table-head-fill",
+  "--ll-table-foot-fill",
+  "--ll-metric-fill",
+  "--ll-progress-track",
+  "--ll-progress-fill",
+  "--ll-overlay-border",
+  "--ll-dialog-backdrop"
+];
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function normalizeHexColor(value, fallback = "") {
+  const match = String(value || "").trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!match) {
+    return fallback;
+  }
+
+  const normalized = match[1].length === 3
+    ? match[1].split("").map((char) => `${char}${char}`).join("")
+    : match[1];
+
+  return `#${normalized.toLowerCase()}`;
+}
+
+function hexToRgb(value) {
+  const hex = normalizeHexColor(value, DEFAULT_CUSTOM_COLOR).slice(1);
+  return {
+    r: Number.parseInt(hex.slice(0, 2), 16),
+    g: Number.parseInt(hex.slice(2, 4), 16),
+    b: Number.parseInt(hex.slice(4, 6), 16)
+  };
+}
+
+function rgbToHex(red, green, blue) {
+  return `#${[red, green, blue].map((value) => Math.round(clamp(value, 0, 255)).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function rgbaFromHex(value, alpha) {
+  const { r, g, b } = hexToRgb(value);
+  const normalizedAlpha = clamp(alpha, 0, 1);
+  return `rgba(${r}, ${g}, ${b}, ${Number(normalizedAlpha.toFixed(3)).toString()})`;
+}
+
+function shiftHue(hue, amount) {
+  return (hue + amount + 360) % 360;
+}
+
+function hexToHsl(value) {
+  const { r, g, b } = hexToRgb(value);
+  const red = r / 255;
+  const green = g / 255;
+  const blue = b / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const lightness = (max + min) / 2;
+
+  if (max === min) {
+    return { h: 0, s: 0, l: lightness * 100 };
+  }
+
+  const delta = max - min;
+  const saturation = lightness > 0.5
+    ? delta / (2 - max - min)
+    : delta / (max + min);
+
+  let hue = 0;
+  if (max === red) {
+    hue = ((green - blue) / delta + (green < blue ? 6 : 0)) * 60;
+  } else if (max === green) {
+    hue = ((blue - red) / delta + 2) * 60;
+  } else {
+    hue = ((red - green) / delta + 4) * 60;
+  }
+
+  return {
+    h: hue,
+    s: saturation * 100,
+    l: lightness * 100
+  };
+}
+
+function hslToHex(hue, saturation, lightness) {
+  const normalizedHue = ((hue % 360) + 360) % 360;
+  const s = clamp(saturation, 0, 100) / 100;
+  const l = clamp(lightness, 0, 100) / 100;
+
+  if (s === 0) {
+    const channel = Math.round(l * 255);
+    return rgbToHex(channel, channel, channel);
+  }
+
+  const chroma = (1 - Math.abs((2 * l) - 1)) * s;
+  const huePrime = normalizedHue / 60;
+  const second = chroma * (1 - Math.abs((huePrime % 2) - 1));
+  const match = l - (chroma / 2);
+
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+
+  if (huePrime >= 0 && huePrime < 1) {
+    red = chroma;
+    green = second;
+  } else if (huePrime < 2) {
+    red = second;
+    green = chroma;
+  } else if (huePrime < 3) {
+    green = chroma;
+    blue = second;
+  } else if (huePrime < 4) {
+    green = second;
+    blue = chroma;
+  } else if (huePrime < 5) {
+    red = second;
+    blue = chroma;
+  } else {
+    red = chroma;
+    blue = second;
+  }
+
+  return rgbToHex(
+    (red + match) * 255,
+    (green + match) * 255,
+    (blue + match) * 255
+  );
+}
+
+function mixHex(left, right, amount) {
+  const leftRgb = hexToRgb(left);
+  const rightRgb = hexToRgb(right);
+  const mixAmount = clamp(amount, 0, 1);
+
+  return rgbToHex(
+    leftRgb.r + ((rightRgb.r - leftRgb.r) * mixAmount),
+    leftRgb.g + ((rightRgb.g - leftRgb.g) * mixAmount),
+    leftRgb.b + ((rightRgb.b - leftRgb.b) * mixAmount)
+  );
+}
+
+function buildColorFromSeed(seedHsl, { hueShift = 0, saturation = seedHsl.s, lightness = seedHsl.l } = {}) {
+  return hslToHex(
+    shiftHue(seedHsl.h, hueShift),
+    saturation,
+    lightness
+  );
+}
+
+function relativeLuminance(value) {
+  const { r, g, b } = hexToRgb(value);
+  const channels = [r, g, b].map((channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+
+  return (0.2126 * channels[0]) + (0.7152 * channels[1]) + (0.0722 * channels[2]);
+}
+
+function readableTextOn(value, dark = "#101114", light = "#f8fbff") {
+  return relativeLuminance(value) > 0.45 ? dark : light;
+}
+
+function deriveCustomScheme(themeId, customColor = DEFAULT_CUSTOM_COLOR) {
+  const seed = normalizeHexColor(customColor, DEFAULT_CUSTOM_COLOR);
+  const seedHsl = hexToHsl(seed);
+  const vividAccent = buildColorFromSeed(seedHsl, {
+    saturation: clamp(Math.max(seedHsl.s, 62), 48, 92),
+    lightness: clamp(seedHsl.l, 36, 58)
+  });
+
+  if (themeId === "flat") {
+    const accent = vividAccent;
+    const accentStrong = buildColorFromSeed(seedHsl, { saturation: clamp(seedHsl.s + 10, 58, 98), lightness: 28 });
+    const accentCool = buildColorFromSeed(seedHsl, { hueShift: 18, saturation: clamp(seedHsl.s, 52, 84), lightness: 42 });
+    const pageBg = buildColorFromSeed(seedHsl, { saturation: clamp(seedHsl.s * 0.42, 18, 46), lightness: 96 });
+    const pageBgDeep = buildColorFromSeed(seedHsl, { hueShift: 16, saturation: clamp(seedHsl.s * 0.55, 24, 58), lightness: 88 });
+    const surfaceStrong = mixHex(pageBg, pageBgDeep, 0.35);
+    const surfaceMuted = mixHex(pageBg, "#ffffff", 0.42);
+    const text = buildColorFromSeed(seedHsl, { saturation: clamp(seedHsl.s * 0.4, 18, 40), lightness: 20 });
+    const muted = mixHex(text, pageBgDeep, 0.5);
+    return {
+      seed,
+      host: {
+        gradient: `linear-gradient(135deg, ${pageBg}, ${pageBgDeep})`,
+        colorScheme: "light",
+        pageBg,
+        pageBgDeep,
+        panelStrong: surfaceStrong,
+        panelBorder: rgbaFromHex(accent, 0.18),
+        accent,
+        accentDeep: accentStrong,
+        accentCool
+      },
+      app: {
+        vars: {
+          "--ll-color-scheme": "light",
+          "--ll-app-bg": `linear-gradient(180deg, ${pageBg} 0%, ${pageBgDeep} 100%)`,
+          "--ll-page-bg": pageBg,
+          "--ll-page-bg-deep": pageBgDeep,
+          "--ll-surface": "#ffffff",
+          "--ll-surface-strong": surfaceStrong,
+          "--ll-surface-muted": surfaceMuted,
+          "--ll-surface-ghost": rgbaFromHex("#ffffff", 0.82),
+          "--ll-border": rgbaFromHex(accent, 0.16),
+          "--ll-border-strong": rgbaFromHex(accent, 0.3),
+          "--ll-text": text,
+          "--ll-muted": muted,
+          "--ll-accent": accent,
+          "--ll-accent-strong": accentStrong,
+          "--ll-accent-soft": rgbaFromHex(accent, 0.14),
+          "--ll-shadow": "none",
+          "--ll-shadow-strong": "none",
+          "--ll-input-bg": "#ffffff",
+          "--ll-button-fill": `linear-gradient(180deg, ${accent} 0%, ${accent} 100%)`,
+          "--ll-button-ink": readableTextOn(accent),
+          "--ll-hero-fill": "linear-gradient(180deg, #ffffff 0%, #ffffff 100%)",
+          "--ll-spotlight-fill": `linear-gradient(180deg, ${surfaceStrong} 0%, ${surfaceStrong} 100%)`,
+          "--ll-secondary-fill": surfaceStrong,
+          "--ll-secondary-border": rgbaFromHex(accent, 0.16)
+        }
+      }
+    };
+  }
+
+  if (themeId === "material2") {
+    const accent = vividAccent;
+    const accentStrong = buildColorFromSeed(seedHsl, { hueShift: -8, saturation: clamp(seedHsl.s + 8, 56, 96), lightness: 30 });
+    const accentCool = buildColorFromSeed(seedHsl, { hueShift: 24, saturation: clamp(seedHsl.s, 48, 82), lightness: 46 });
+    const pageBg = buildColorFromSeed(seedHsl, { saturation: clamp(seedHsl.s * 0.34, 16, 36), lightness: 96 });
+    const pageBgDeep = buildColorFromSeed(seedHsl, { hueShift: 18, saturation: clamp(seedHsl.s * 0.45, 20, 48), lightness: 90 });
+    const surfaceStrong = mixHex(pageBg, pageBgDeep, 0.45);
+    const text = buildColorFromSeed(seedHsl, { saturation: clamp(seedHsl.s * 0.48, 18, 42), lightness: 22 });
+    const muted = mixHex(text, pageBgDeep, 0.56);
+    return {
+      seed,
+      host: {
+        gradient: `linear-gradient(135deg, ${pageBg}, ${pageBgDeep})`,
+        colorScheme: "light",
+        pageBg,
+        pageBgDeep,
+        panelStrong: surfaceStrong,
+        panelBorder: rgbaFromHex(accent, 0.16),
+        accent,
+        accentDeep: accentStrong,
+        accentCool
+      },
+      app: {
+        vars: {
+          "--ll-color-scheme": "light",
+          "--ll-app-bg": `linear-gradient(180deg, ${pageBg} 0%, ${pageBgDeep} 100%)`,
+          "--ll-page-bg": pageBg,
+          "--ll-page-bg-deep": pageBgDeep,
+          "--ll-surface": rgbaFromHex("#ffffff", 0.98),
+          "--ll-surface-strong": surfaceStrong,
+          "--ll-surface-muted": rgbaFromHex(surfaceStrong, 0.82),
+          "--ll-surface-ghost": rgbaFromHex("#ffffff", 0.74),
+          "--ll-border": rgbaFromHex(accent, 0.14),
+          "--ll-border-strong": rgbaFromHex(accent, 0.24),
+          "--ll-text": text,
+          "--ll-muted": muted,
+          "--ll-accent": accent,
+          "--ll-accent-strong": accentStrong,
+          "--ll-accent-soft": rgbaFromHex(accent, 0.12),
+          "--ll-shadow": `0 10px 22px ${rgbaFromHex(accent, 0.1)}`,
+          "--ll-shadow-strong": `0 18px 34px ${rgbaFromHex(accent, 0.16)}`,
+          "--ll-input-bg": "#ffffff",
+          "--ll-button-fill": `linear-gradient(180deg, ${accent} 0%, ${accentCool} 100%)`,
+          "--ll-button-ink": readableTextOn(accent),
+          "--ll-hero-fill": "linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%)",
+          "--ll-spotlight-fill": `linear-gradient(180deg, ${mixHex(pageBg, "#ffffff", 0.28)} 0%, #ffffff 100%)`
+        }
+      }
+    };
+  }
+
+  if (themeId === "neumorph") {
+    const accent = buildColorFromSeed(seedHsl, {
+      saturation: clamp(seedHsl.s * 0.55, 18, 42),
+      lightness: clamp(seedHsl.l, 42, 56)
+    });
+    const accentStrong = buildColorFromSeed(seedHsl, { saturation: clamp(seedHsl.s * 0.6, 22, 48), lightness: 34 });
+    const accentCool = buildColorFromSeed(seedHsl, { hueShift: 26, saturation: clamp(seedHsl.s * 0.36, 14, 34), lightness: 48 });
+    const pageBg = buildColorFromSeed(seedHsl, { saturation: clamp(seedHsl.s * 0.22, 10, 18), lightness: 95 });
+    const pageBgDeep = buildColorFromSeed(seedHsl, { saturation: clamp(seedHsl.s * 0.26, 12, 22), lightness: 86 });
+    const surface = rgbaFromHex(mixHex(pageBg, "#ffffff", 0.28), 0.97);
+    const surfaceStrong = mixHex(pageBg, pageBgDeep, 0.46);
+    const text = buildColorFromSeed(seedHsl, { saturation: clamp(seedHsl.s * 0.28, 12, 24), lightness: 21 });
+    const muted = mixHex(text, pageBgDeep, 0.58);
+    return {
+      seed,
+      host: {
+        gradient: `linear-gradient(135deg, ${pageBg}, ${pageBgDeep})`,
+        colorScheme: "light",
+        pageBg,
+        pageBgDeep,
+        panelStrong: surfaceStrong,
+        panelBorder: rgbaFromHex(accent, 0.2),
+        accent,
+        accentDeep: accentStrong,
+        accentCool
+      },
+      app: {
+        vars: {
+          "--ll-color-scheme": "light",
+          "--ll-page-bg": pageBg,
+          "--ll-page-bg-deep": pageBgDeep,
+          "--ll-surface": surface,
+          "--ll-surface-strong": surfaceStrong,
+          "--ll-surface-muted": rgbaFromHex(surfaceStrong, 0.68),
+          "--ll-surface-ghost": rgbaFromHex("#ffffff", 0.64),
+          "--ll-border": rgbaFromHex(accentStrong, 0.16),
+          "--ll-border-strong": rgbaFromHex(accentStrong, 0.28),
+          "--ll-text": text,
+          "--ll-muted": muted,
+          "--ll-accent": accent,
+          "--ll-accent-strong": accentStrong,
+          "--ll-accent-soft": rgbaFromHex(accent, 0.14),
+          "--ll-shadow": `0 24px 54px ${rgbaFromHex(accentStrong, 0.1)}`,
+          "--ll-shadow-strong": `0 28px 64px ${rgbaFromHex(accentStrong, 0.14)}`,
+          "--ll-hero-fill": `linear-gradient(135deg, ${rgbaFromHex("#ffffff", 0.94)}, ${rgbaFromHex(pageBgDeep, 0.94)})`,
+          "--ll-spotlight-fill": `linear-gradient(135deg, ${rgbaFromHex(pageBgDeep, 0.84)}, ${rgbaFromHex("#ffffff", 0.96)})`
+        }
+      }
+    };
+  }
+
+  if (themeId === "glass") {
+    const accent = vividAccent;
+    const splitLeft = buildColorFromSeed(seedHsl, { hueShift: -34, saturation: clamp(seedHsl.s + 4, 54, 90), lightness: 76 });
+    const splitRight = buildColorFromSeed(seedHsl, { hueShift: 34, saturation: clamp(seedHsl.s + 2, 52, 88), lightness: 82 });
+    const accentStrong = buildColorFromSeed(seedHsl, { hueShift: -8, saturation: clamp(seedHsl.s + 6, 56, 92), lightness: 36 });
+    const text = buildColorFromSeed(seedHsl, { hueShift: -18, saturation: clamp(seedHsl.s * 0.45, 18, 44), lightness: 22 });
+    const muted = mixHex(text, splitRight, 0.52);
+    return {
+      seed,
+      host: {
+        gradient: `linear-gradient(135deg, ${splitLeft}, ${splitRight})`,
+        colorScheme: "light",
+        pageBg: splitLeft,
+        pageBgDeep: splitRight,
+        panelStrong: rgbaFromHex("#ffffff", 0.34),
+        panelBorder: rgbaFromHex("#ffffff", 0.42),
+        accent,
+        accentDeep: accentStrong,
+        accentCool: accent
+      },
+      app: {
+        vars: {
+          "--ll-color-scheme": "light",
+          "--ll-app-bg": `radial-gradient(circle at 15% 10%, ${rgbaFromHex("#ffffff", 0.78)}, transparent 20rem), radial-gradient(circle at 85% 0%, ${rgbaFromHex(accent, 0.28)}, transparent 22rem), linear-gradient(135deg, ${splitLeft} 0%, ${mixHex(splitLeft, splitRight, 0.5)} 52%, ${splitRight} 100%)`,
+          "--ll-page-bg": splitLeft,
+          "--ll-page-bg-deep": splitRight,
+          "--ll-text": text,
+          "--ll-muted": muted,
+          "--ll-accent": accent,
+          "--ll-accent-strong": accentStrong,
+          "--ll-accent-soft": rgbaFromHex(accent, 0.16),
+          "--ll-shadow": `0 18px 44px ${rgbaFromHex(accentStrong, 0.18)}`,
+          "--ll-shadow-strong": `0 26px 62px ${rgbaFromHex(accentStrong, 0.22)}`
+        }
+      }
+    };
+  }
+
+  if (themeId === "brutal") {
+    const accent = buildColorFromSeed(seedHsl, {
+      saturation: clamp(Math.max(seedHsl.s, 82), 68, 100),
+      lightness: clamp(seedHsl.l, 42, 54)
+    });
+    const loudBlock = buildColorFromSeed(seedHsl, {
+      hueShift: 20,
+      saturation: clamp(Math.max(seedHsl.s, 78), 62, 98),
+      lightness: 64
+    });
+    const contrastBlock = buildColorFromSeed(seedHsl, {
+      hueShift: -22,
+      saturation: clamp(Math.max(seedHsl.s, 72), 56, 94),
+      lightness: 58
+    });
+    const pageBg = mixHex(loudBlock, "#ffffff", 0.08);
+    const pageBgDeep = mixHex(accent, contrastBlock, 0.42);
+    const surfaceStrong = mixHex(pageBg, "#ffffff", 0.26);
+    const surface = mixHex(surfaceStrong, "#ffffff", 0.32);
+    const text = "#121212";
+    const muted = mixHex(text, pageBgDeep, 0.46);
+    return {
+      seed,
+      host: {
+        gradient: `linear-gradient(135deg, ${pageBg}, ${pageBgDeep})`,
+        colorScheme: "light",
+        pageBg,
+        pageBgDeep,
+        panelStrong: surfaceStrong,
+        panelBorder: rgbaFromHex("#111111", 0.94),
+        accent,
+        accentDeep: "#111111",
+        accentCool: "#111111"
+      },
+      app: {
+        vars: {
+          "--ll-color-scheme": "light",
+          "--ll-app-bg": `linear-gradient(180deg, ${pageBg} 0%, ${pageBgDeep} 100%)`,
+          "--ll-page-bg": pageBg,
+          "--ll-page-bg-deep": pageBgDeep,
+          "--ll-surface": surface,
+          "--ll-surface-strong": surfaceStrong,
+          "--ll-surface-muted": mixHex(pageBg, surfaceStrong, 0.38),
+          "--ll-surface-ghost": rgbaFromHex("#ffffff", 0.72),
+          "--ll-border": rgbaFromHex("#111111", 0.96),
+          "--ll-border-strong": "rgba(17, 17, 17, 1)",
+          "--ll-text": text,
+          "--ll-muted": muted,
+          "--ll-accent": accent,
+          "--ll-accent-strong": "#111111",
+          "--ll-accent-soft": rgbaFromHex(accent, 0.24),
+          "--ll-button-fill": `linear-gradient(180deg, ${accent} 0%, ${contrastBlock} 100%)`,
+          "--ll-button-ink": readableTextOn(accent, "#111111", "#ffffff"),
+          "--ll-hero-fill": `linear-gradient(180deg, ${mixHex(pageBg, "#ffffff", 0.18)} 0%, ${mixHex(pageBgDeep, "#ffffff", 0.14)} 100%)`,
+          "--ll-spotlight-fill": `linear-gradient(180deg, ${mixHex(accent, "#ffffff", 0.58)} 0%, ${mixHex(pageBg, "#ffffff", 0.34)} 100%)`
+        }
+      }
+    };
+  }
+
+  const accent = buildColorFromSeed(seedHsl, {
+    saturation: clamp(Math.max(seedHsl.s, 68), 52, 96),
+    lightness: clamp(seedHsl.l, 56, 66)
+  });
+  const glow = buildColorFromSeed(seedHsl, {
+    hueShift: 38,
+    saturation: clamp(seedHsl.s + 2, 48, 88),
+    lightness: 58
+  });
+  const pageBg = buildColorFromSeed(seedHsl, {
+    hueShift: -26,
+    saturation: clamp(seedHsl.s * 0.56, 26, 58),
+    lightness: 16
+  });
+  const pageBgDeep = buildColorFromSeed(seedHsl, {
+    hueShift: 20,
+    saturation: clamp(seedHsl.s * 0.5, 20, 52),
+    lightness: 8
+  });
+  const surfaceStrong = rgbaFromHex(mixHex(pageBg, glow, 0.28), 0.82);
+  const border = rgbaFromHex(mixHex(accent, "#dbe7ff", 0.52), 0.22);
+  return {
+    seed,
+    host: {
+      gradient: `linear-gradient(135deg, ${pageBg}, ${pageBgDeep})`,
+      colorScheme: "dark",
+      pageBg,
+      pageBgDeep,
+      panelStrong: surfaceStrong,
+      panelBorder: border,
+      accent,
+      accentDeep: mixHex(accent, "#ffffff", 0.72),
+      accentCool: glow
+    },
+    app: {
+      vars: {
+        "--ll-color-scheme": "dark",
+        "--ll-app-bg": `radial-gradient(circle at 10% 10%, ${rgbaFromHex(accent, 0.24)}, transparent 22rem), radial-gradient(circle at 90% 0%, ${rgbaFromHex(glow, 0.2)}, transparent 24rem), radial-gradient(circle at 50% 100%, ${rgbaFromHex(mixHex(accent, glow, 0.5), 0.08)}, transparent 26rem), linear-gradient(180deg, ${pageBg} 0%, ${pageBgDeep} 100%)`,
+        "--ll-page-bg": pageBg,
+        "--ll-page-bg-deep": pageBgDeep,
+        "--ll-surface": rgbaFromHex(mixHex(pageBg, "#17243d", 0.3), 0.62),
+        "--ll-surface-strong": surfaceStrong,
+        "--ll-surface-muted": rgbaFromHex(mixHex(pageBg, glow, 0.4), 0.64),
+        "--ll-surface-ghost": rgbaFromHex("#ffffff", 0.06),
+        "--ll-border": border,
+        "--ll-border-strong": rgbaFromHex(mixHex(accent, "#ffffff", 0.56), 0.3),
+        "--ll-text": "#f5f8ff",
+        "--ll-muted": mixHex("#e7eeff", pageBg, 0.45),
+        "--ll-accent": accent,
+        "--ll-accent-strong": mixHex(accent, "#ffffff", 0.72),
+        "--ll-accent-soft": rgbaFromHex(accent, 0.2),
+        "--ll-shadow": "0 24px 60px rgba(4, 7, 20, 0.48)",
+        "--ll-shadow-strong": "0 30px 84px rgba(4, 7, 20, 0.66)",
+        "--ll-input-bg": rgbaFromHex("#0b1121", 0.82),
+        "--ll-button-fill": `linear-gradient(135deg, ${accent} 0%, ${glow} 100%)`,
+        "--ll-button-ink": "#f8fbff",
+        "--ll-table-head-fill": `color-mix(in srgb, ${surfaceStrong} 82%, black)`,
+        "--ll-table-foot-fill": `color-mix(in srgb, ${rgbaFromHex(mixHex(pageBg, glow, 0.4), 0.64)} 78%, black)`,
+        "--ll-metric-fill": `linear-gradient(135deg, ${rgbaFromHex(accent, 0.18)}, ${rgbaFromHex(pageBgDeep, 0.88)})`,
+        "--ll-secondary-fill": `color-mix(in srgb, ${rgbaFromHex(accent, 0.2)} 60%, ${rgbaFromHex("#ffffff", 0.06)})`,
+        "--ll-secondary-border": border,
+        "--ll-dialog-backdrop": `color-mix(in srgb, ${pageBgDeep} 74%, transparent)`,
+        "--ll-hero-fill": `radial-gradient(circle at top right, ${rgbaFromHex(accent, 0.22)}, transparent 18rem), radial-gradient(circle at top left, ${rgbaFromHex(glow, 0.16)}, transparent 18rem), linear-gradient(135deg, ${rgbaFromHex(mixHex(pageBg, accent, 0.22), 0.86)}, ${rgbaFromHex(pageBgDeep, 0.92)})`,
+        "--ll-spotlight-fill": `radial-gradient(circle at top, ${rgbaFromHex(glow, 0.18)}, transparent 18rem), linear-gradient(135deg, ${rgbaFromHex(mixHex(pageBg, glow, 0.28), 0.86)}, ${rgbaFromHex(pageBgDeep, 0.94)})`
+      }
+    }
+  };
+}
+
+function customSchemeInlineStyle(themeId, schemeId, customColor) {
+  if (schemeId !== CUSTOM_SCHEME_ID) {
+    return "";
+  }
+
+  const derived = deriveCustomScheme(themeId, customColor);
+  return Object.entries(derived.app.vars)
+    .map(([name, value]) => `${name}: ${value}`)
+    .join("; ");
+}
+
+function extractCustomColorFromElement(element) {
+  return normalizeHexColor(element?.getAttribute?.(CUSTOM_COLOR_MARKER) || "", "");
+}
+
+function extractCustomColorFromHtml(appHtml) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<body>${extractCodeBlock(appHtml)}</body>`, "text/html");
+  const root = doc.body.querySelector(`[${APP_MARKER}]`);
+  return extractCustomColorFromElement(root);
+}
+
+function applyCustomThemeToElement(element, themeId, schemeId, customColor) {
+  if (!element) {
+    return "";
+  }
+
+  CUSTOM_THEME_STYLE_PROPERTIES.forEach((property) => {
+    element.style.removeProperty(property);
+  });
+  element.removeAttribute(CUSTOM_COLOR_MARKER);
+
+  if (schemeId !== CUSTOM_SCHEME_ID) {
+    if (!element.getAttribute("style")?.trim()) {
+      element.removeAttribute("style");
+    }
+    return "";
+  }
+
+  const normalizedColor = normalizeHexColor(customColor, DEFAULT_CUSTOM_COLOR);
+  const derived = deriveCustomScheme(themeId, normalizedColor);
+  element.setAttribute(CUSTOM_COLOR_MARKER, normalizedColor);
+  Object.entries(derived.app.vars).forEach(([property, value]) => {
+    element.style.setProperty(property, value);
+  });
+
+  return normalizedColor;
+}
 
 const HELPER_CLASSES = [
   "app-shell",
@@ -1363,10 +1961,16 @@ function schemeById(themeId, schemeId) {
   return theme.schemes.find((scheme) => scheme.id === canonicalSchemeId) || theme.schemes[0];
 }
 
-function hostSchemeTokens(themeId, schemeId) {
+function hostSchemeTokens(themeId, schemeId, customColor = DEFAULT_CUSTOM_COLOR) {
   const theme = themeById(themeId);
   const scheme = schemeById(theme.id, schemeId);
+  if (scheme.id === CUSTOM_SCHEME_ID) {
+    return deriveCustomScheme(theme.id, customColor).host;
+  }
+
   return HOST_SCHEME_TOKENS[theme.id]?.[scheme.id] || HOST_SCHEME_TOKENS[theme.id]?.[theme.schemes[0]?.id] || {
+    gradient: theme.gradient,
+    colorScheme: theme.id === "liquid" ? "dark" : "light",
     pageBg: "#eef5ff",
     pageBgDeep: "#dcecff",
     panelStrong: "#edf4ff",
@@ -1477,6 +2081,9 @@ function extractAppMetadata(appHtml, fallbackTheme, fallbackScheme) {
   const themeId = themeById(rawThemeId).id;
   const rawSchemeId = root?.getAttribute(SCHEME_MARKER) || fallbackScheme;
   const schemeId = schemeById(themeId, rawSchemeId).id;
+  const customColor = schemeId === CUSTOM_SCHEME_ID
+    ? extractCustomColorFromElement(root) || DEFAULT_CUSTOM_COLOR
+    : "";
   const title = (
     root?.getAttribute("data-llastro-title") ||
     root?.querySelector("h1, h2, [data-llastro-title]")?.textContent ||
@@ -1494,14 +2101,25 @@ function extractAppMetadata(appHtml, fallbackTheme, fallbackScheme) {
     summary: summary.slice(0, 180),
     tags,
     themeId,
-    schemeId
+    schemeId,
+    customColor
   };
 }
 
-function buildExampleSnippet(themeId, schemeId) {
+function buildRootThemeAttributes(themeId, schemeId, customColor = DEFAULT_CUSTOM_COLOR) {
+  if (schemeId !== CUSTOM_SCHEME_ID) {
+    return "";
+  }
+
+  const normalizedColor = normalizeHexColor(customColor, DEFAULT_CUSTOM_COLOR);
+  const inlineStyle = customSchemeInlineStyle(themeId, schemeId, normalizedColor);
+  return ` ${CUSTOM_COLOR_MARKER}="${normalizedColor}" style="${escapeHtml(inlineStyle)}"`;
+}
+
+function buildExampleSnippet(themeId, schemeId, customColor = DEFAULT_CUSTOM_COLOR) {
   return [
     "```html",
-    `<main ${APP_MARKER} ${THEME_MARKER}="${themeId}" ${SCHEME_MARKER}="${schemeId}" data-llastro-title="Retreat Control Room" data-llastro-summary="A reusable planning board for coordinating retreat decisions, owners, and workstreams." data-llastro-tags="planner, tracker, team" class="app-shell stack" x-data="{`,
+    `<main ${APP_MARKER} ${THEME_MARKER}="${themeId}" ${SCHEME_MARKER}="${schemeId}"${buildRootThemeAttributes(themeId, schemeId, customColor)} data-llastro-title="Retreat Control Room" data-llastro-summary="A reusable planning board for coordinating retreat decisions, owners, and workstreams." data-llastro-tags="planner, tracker, team" class="app-shell stack" x-data="{`,
     "  view: 'board',",
     "  query: '',",
     "  showComposer: false,",
@@ -1620,12 +2238,12 @@ function buildExampleSnippet(themeId, schemeId) {
   ].join("\n");
 }
 
-function buildReferenceFixture(themeId, schemeId) {
+function buildReferenceFixture(themeId, schemeId, customColor = DEFAULT_CUSTOM_COLOR) {
   const theme = themeById(themeId);
   const scheme = schemeById(themeId, schemeId);
 
   return [
-    `<main ${APP_MARKER} ${THEME_MARKER}="${theme.id}" ${SCHEME_MARKER}="${scheme.id}" class="app-shell stack" x-data="{}" data-llastro-title="${theme.name} ${scheme.name} reference">`,
+    `<main ${APP_MARKER} ${THEME_MARKER}="${theme.id}" ${SCHEME_MARKER}="${scheme.id}"${buildRootThemeAttributes(theme.id, scheme.id, customColor)} class="app-shell stack" x-data="{}" data-llastro-title="${theme.name} ${scheme.name} reference">`,
     "  <header class=\"hero stack\">",
     "    <div class=\"cluster\">",
     `      <span class="pill">${theme.name}</span>`,
@@ -1779,8 +2397,10 @@ function createStudioApp() {
     helperClasses: HELPER_CLASSES,
     appTheme: THEMES[0].id,
     appScheme: THEMES[0].schemes[0].id,
+    appCustomColor: DEFAULT_CUSTOM_COLOR,
     selectedTheme: THEMES[0].id,
     selectedScheme: THEMES[0].schemes[0].id,
+    selectedCustomColor: DEFAULT_CUSTOM_COLOR,
     currentStudioStep: STUDIO_STEPS[0].id,
     promptMode: DEFAULT_PROMPT_MODE,
     appName: "",
@@ -1830,12 +2450,20 @@ function createStudioApp() {
       return schemeById(this.appTheme, this.appScheme);
     },
 
+    get currentAppCustomColor() {
+      return normalizeHexColor(this.appCustomColor, DEFAULT_CUSTOM_COLOR);
+    },
+
     get currentSchemes() {
       return this.currentTheme.schemes;
     },
 
     get currentScheme() {
       return schemeById(this.selectedTheme, this.selectedScheme);
+    },
+
+    get currentSelectedCustomColor() {
+      return normalizeHexColor(this.selectedCustomColor, DEFAULT_CUSTOM_COLOR);
     },
 
     get editorSelectionText() {
@@ -2032,6 +2660,12 @@ function createStudioApp() {
       const currentSchemeLines = this.currentSchemes
         .map((scheme) => `- ${scheme.id}: ${scheme.summary}`)
         .join("\n");
+      const customSchemeLines = this.currentScheme.id === CUSTOM_SCHEME_ID
+        ? [
+            `- Use ${CUSTOM_SCHEME_ID} as the ${SCHEME_MARKER} value for the root element.`,
+            `- The studio will inject the derived palette from the chosen seed color ${this.currentSelectedCustomColor}, so do not add custom CSS to simulate it.`
+          ]
+        : [];
 
       const sharedRuntimeLines = [
         "Return format:",
@@ -2094,6 +2728,7 @@ function createStudioApp() {
         flatSchemeLines,
         `- If you choose ${this.currentTheme.id}, prefer ${this.currentScheme.id}. Allowed schemes for this theme are:`,
         currentSchemeLines,
+        ...customSchemeLines,
         "",
         "Decision policy:",
         "- Start from the core user task or workflow hidden in the source material.",
@@ -2221,8 +2856,36 @@ function createStudioApp() {
       return schemeById(themeId, schemeId);
     },
 
-    resolveHostSchemeAccent(themeId, schemeId) {
-      return hostSchemeTokens(themeId, schemeId).accent;
+    resolveHostSchemeAccent(themeId, schemeId, customColor = DEFAULT_CUSTOM_COLOR) {
+      return hostSchemeTokens(themeId, schemeId, customColor).accent;
+    },
+
+    resolveSchemeCardStyle(themeId, schemeId, customColor = DEFAULT_CUSTOM_COLOR) {
+      const scheme = schemeById(themeId, schemeId);
+      const tokens = hostSchemeTokens(themeId, schemeId, customColor);
+      return `--scheme-gradient:${scheme.id === CUSTOM_SCHEME_ID ? tokens.gradient : scheme.gradient}; --scheme-accent:${tokens.accent};`;
+    },
+
+    describeCustomScheme(themeId) {
+      return CUSTOM_SCHEME_THEORY[themeId] || "Theme-aware palette generated from one chosen color.";
+    },
+
+    updateSelectedCustomColor(value) {
+      this.selectedCustomColor = normalizeHexColor(value, DEFAULT_CUSTOM_COLOR);
+      if (this.selectedScheme === CUSTOM_SCHEME_ID) {
+        this.applySelectedThemeToDraft();
+      }
+      this.saveState();
+      this.statusMessage = `Custom tool color set to ${this.currentSelectedCustomColor}.`;
+    },
+
+    updateAppCustomColor(value) {
+      this.appCustomColor = normalizeHexColor(value, DEFAULT_CUSTOM_COLOR);
+      if (this.appScheme === CUSTOM_SCHEME_ID) {
+        this.applyAppTheme();
+      }
+      this.saveState();
+      this.statusMessage = `Studio custom color set to ${this.currentAppCustomColor}.`;
     },
 
     selectAppTheme(themeId) {
@@ -2244,14 +2907,15 @@ function createStudioApp() {
     applyAppTheme() {
       const theme = themeById(this.appTheme);
       const scheme = schemeById(theme.id, this.appScheme);
-      const tokens = hostSchemeTokens(theme.id, scheme.id);
+      const customColor = scheme.id === CUSTOM_SCHEME_ID ? this.currentAppCustomColor : DEFAULT_CUSTOM_COLOR;
+      const tokens = hostSchemeTokens(theme.id, scheme.id, customColor);
       this.appTheme = theme.id;
       this.appScheme = scheme.id;
 
       const root = document.documentElement;
       root.dataset.appTheme = theme.id;
       root.dataset.appScheme = scheme.id;
-      root.style.setProperty("--app-scheme-gradient", scheme.gradient);
+      root.style.setProperty("--app-scheme-gradient", scheme.id === CUSTOM_SCHEME_ID ? tokens.gradient : scheme.gradient);
       root.style.setProperty("--app-theme-accent", tokens.accent);
       root.style.setProperty("--page-bg", tokens.pageBg);
       root.style.setProperty("--page-bg-deep", tokens.pageBgDeep);
@@ -2259,13 +2923,14 @@ function createStudioApp() {
       root.style.setProperty("--panel-border", tokens.panelBorder);
       root.style.setProperty("--accent-deep", tokens.accentDeep);
       root.style.setProperty("--accent-cool", tokens.accentCool);
+      root.style.setProperty("color-scheme", tokens.colorScheme || "");
     },
 
-    buildReferencePreview(themeId, schemeId) {
+    buildReferencePreview(themeId, schemeId, customColor = DEFAULT_CUSTOM_COLOR) {
       const theme = themeById(themeId);
       const scheme = schemeById(themeId, schemeId);
       return this.buildPreviewDocument(
-        buildReferenceFixture(theme.id, scheme.id),
+        buildReferenceFixture(theme.id, scheme.id, customColor),
         `${theme.name} ${scheme.name} reference`
       );
     },
@@ -2524,6 +3189,9 @@ function createStudioApp() {
         );
         this.importedTheme = meta.themeId;
         this.importedScheme = meta.schemeId;
+        if (meta.customColor) {
+          this.selectedCustomColor = meta.customColor;
+        }
         this.importedAppTitle = meta.title;
         if (!this.appName.trim()) {
           this.appName = meta.title;
@@ -2755,6 +3423,7 @@ function createStudioApp() {
 
       this.selectedTheme = app.themeId;
       this.selectedScheme = normalizeSchemeId(app.themeId, app.schemeId);
+      this.selectedCustomColor = extractCustomColorFromHtml(app.source || app.html) || this.currentSelectedCustomColor;
       this.appName = app.title;
       this.appTags = normalizeTags(app.tags).join(", ");
       this.rawResponse = app.source;
@@ -2824,6 +3493,7 @@ function createStudioApp() {
     resetStudioSession() {
       this.selectedTheme = THEMES[0].id;
       this.selectedScheme = THEMES[0].schemes[0].id;
+      this.selectedCustomColor = DEFAULT_CUSTOM_COLOR;
       this.currentStudioStep = STUDIO_STEPS[0].id;
       this.promptMode = DEFAULT_PROMPT_MODE;
       this.appName = "";
@@ -2865,7 +3535,7 @@ function createStudioApp() {
     loadExample(silent = false) {
       this.currentEditingId = "";
       this.currentEditingSourceTitle = "";
-      this.rawResponse = buildExampleSnippet(this.selectedTheme, this.selectedScheme);
+      this.rawResponse = buildExampleSnippet(this.selectedTheme, this.selectedScheme, this.currentSelectedCustomColor);
       this.importResponse(silent);
     },
 
@@ -2922,6 +3592,7 @@ function createStudioApp() {
 
     applySelectedThemeToDraft() {
       if (!this.normalizedAppHtml) {
+        this.saveState();
         return;
       }
 
@@ -2929,15 +3600,17 @@ function createStudioApp() {
       const draft = parser.parseFromString(`<body>${this.normalizedAppHtml}</body>`, "text/html");
       const nextThemeId = themeById(this.selectedTheme).id;
       const nextSchemeId = schemeById(nextThemeId, this.selectedScheme).id;
+      const nextCustomColor = nextSchemeId === CUSTOM_SCHEME_ID ? this.currentSelectedCustomColor : "";
       const root = draft.body.querySelector(`[${APP_MARKER}]`);
 
       let nextHtml = "";
       if (root) {
         root.setAttribute(THEME_MARKER, nextThemeId);
         root.setAttribute(SCHEME_MARKER, nextSchemeId);
+        applyCustomThemeToElement(root, nextThemeId, nextSchemeId, nextCustomColor);
         nextHtml = draft.body.innerHTML.trim();
       } else {
-        nextHtml = this.wrapWithRoot(draft.body.innerHTML.trim(), nextThemeId, nextSchemeId);
+        nextHtml = this.wrapWithRoot(draft.body.innerHTML.trim(), nextThemeId, nextSchemeId, nextCustomColor);
       }
 
       const meta = extractAppMetadata(nextHtml, nextThemeId, nextSchemeId);
@@ -2945,10 +3618,14 @@ function createStudioApp() {
       this.rawResponse = nextHtml;
       this.importedTheme = nextThemeId;
       this.importedScheme = nextSchemeId;
+      if (meta.customColor) {
+        this.selectedCustomColor = meta.customColor;
+      }
       this.importedAppTitle = meta.title;
       this.applyAppTitleToDraft();
       this.applyAppTagsToDraft();
       this.statusMessage = `Tool theme updated to ${themeById(nextThemeId).name} · ${schemeById(nextThemeId, nextSchemeId).name}.`;
+      this.saveState();
     },
 
     importResponse(silent = false) {
@@ -2967,6 +3644,9 @@ function createStudioApp() {
       this.normalizedAppHtml = result.html;
       this.importedTheme = result.themeId;
       this.importedScheme = result.schemeId;
+      if (result.customColor) {
+        this.selectedCustomColor = result.customColor;
+      }
       this.importedAppTitle = result.meta.title;
       if (!this.currentEditingId || !this.appName.trim()) {
         this.appName = result.meta.title;
@@ -3039,6 +3719,7 @@ function createStudioApp() {
       const selectedSchemeId = schemeById(selectedThemeId, this.selectedScheme).id;
       const pastedThemeId = normalizeThemeId(root?.getAttribute(THEME_MARKER) || "");
       const isEditingWithThemeOverride = Boolean(this.currentEditingId);
+      const shouldPreferSelectedCustomTheme = !isEditingWithThemeOverride && selectedSchemeId === CUSTOM_SCHEME_ID;
 
       let themeId = pastedThemeId;
 
@@ -3050,6 +3731,8 @@ function createStudioApp() {
             text: `Editing mode kept the selected theme ${selectedThemeId} instead of the pasted ${THEME_MARKER} value ${pastedThemeId}.`
           });
         }
+      } else if (shouldPreferSelectedCustomTheme) {
+        themeId = selectedThemeId;
       } else if (!themeId) {
         themeId = selectedThemeId;
         issues.push({
@@ -3059,6 +3742,7 @@ function createStudioApp() {
       }
 
       let schemeId = normalizeSchemeId(themeId, root?.getAttribute(SCHEME_MARKER) || "");
+      const pastedCustomColor = extractCustomColorFromElement(root);
 
       if (isEditingWithThemeOverride) {
         const pastedSchemeId = normalizeSchemeId(themeId, root?.getAttribute(SCHEME_MARKER) || "");
@@ -3069,11 +3753,28 @@ function createStudioApp() {
             text: `Editing mode kept the selected scheme ${selectedSchemeId} instead of the pasted ${SCHEME_MARKER} value ${pastedSchemeId}.`
           });
         }
+      } else if (shouldPreferSelectedCustomTheme) {
+        schemeId = selectedSchemeId;
       } else if (root?.getAttribute(SCHEME_MARKER) !== schemeId) {
         issues.push({
           level: "warning",
           text: `No valid ${SCHEME_MARKER} was found for ${themeId}. Falling back to ${schemeId}.`
         });
+      }
+
+      let customColor = "";
+      if (schemeId === CUSTOM_SCHEME_ID) {
+        if (isEditingWithThemeOverride) {
+          customColor = this.currentSelectedCustomColor;
+          if (pastedCustomColor && pastedCustomColor !== customColor) {
+            issues.push({
+              level: "info",
+              text: `Editing mode kept the selected custom color ${customColor} instead of the pasted ${CUSTOM_COLOR_MARKER} value ${pastedCustomColor}.`
+            });
+          }
+        } else {
+          customColor = pastedCustomColor || this.currentSelectedCustomColor;
+        }
       }
 
       let html = body.innerHTML.trim();
@@ -3083,11 +3784,12 @@ function createStudioApp() {
           level: "warning",
           text: `No ${APP_MARKER} root was found. The runtime wrapped the pasted fragment automatically.`
         });
-        html = this.wrapWithRoot(html, themeId, schemeId);
+        html = this.wrapWithRoot(html, themeId, schemeId, customColor);
       } else {
         const runtimeRoot = body.querySelector(`[${APP_MARKER}]`);
         runtimeRoot.setAttribute(THEME_MARKER, themeId);
         runtimeRoot.setAttribute(SCHEME_MARKER, schemeId);
+        customColor = applyCustomThemeToElement(runtimeRoot, themeId, schemeId, customColor);
         html = body.innerHTML.trim();
       }
 
@@ -3105,12 +3807,12 @@ function createStudioApp() {
         ? `${normalizedRoot.tagName.toLowerCase()} ${APP_MARKER} ${THEME_MARKER}="${themeId}" ${SCHEME_MARKER}="${schemeId}"`
         : `wrapped fragment with ${THEME_MARKER}="${themeId}" ${SCHEME_MARKER}="${schemeId}"`;
 
-      return { html, issues, themeId, schemeId, summary, meta };
+      return { html, issues, themeId, schemeId, summary, meta, customColor };
     },
 
-    wrapWithRoot(innerHtml, themeId = this.selectedTheme, schemeId = this.selectedScheme) {
+    wrapWithRoot(innerHtml, themeId = this.selectedTheme, schemeId = this.selectedScheme, customColor = this.currentSelectedCustomColor) {
       const fallback = "<section class=\"empty-state stack\"><h1>Paste a tool to get started.</h1><p class=\"muted\">The preview will render here once you import a response.</p></section>";
-      return `<main ${APP_MARKER} ${THEME_MARKER}="${themeId}" ${SCHEME_MARKER}="${schemeId}" class="app-shell stack">${innerHtml || fallback}</main>`;
+      return `<main ${APP_MARKER} ${THEME_MARKER}="${themeId}" ${SCHEME_MARKER}="${schemeId}"${buildRootThemeAttributes(themeId, schemeId, customColor)} class="app-shell stack">${innerHtml || fallback}</main>`;
     },
 
     buildPreviewDocument(appHtml, title = "llastro preview", options = {}) {
@@ -3533,8 +4235,10 @@ function createStudioApp() {
       const payload = {
         appTheme: this.appTheme,
         appScheme: this.appScheme,
+        appCustomColor: this.appCustomColor,
         selectedTheme: this.selectedTheme,
         selectedScheme: this.selectedScheme,
+        selectedCustomColor: this.selectedCustomColor,
         currentStudioStep: this.currentStudioStep,
         promptMode: this.promptMode,
         appName: this.appName,
@@ -3567,12 +4271,18 @@ function createStudioApp() {
         if (typeof payload.appScheme === "string") {
           this.appScheme = normalizeSchemeId(this.appTheme, payload.appScheme);
         }
+        if (typeof payload.appCustomColor === "string") {
+          this.appCustomColor = normalizeHexColor(payload.appCustomColor, DEFAULT_CUSTOM_COLOR);
+        }
         const restoredThemeId = normalizeThemeId(payload.selectedTheme);
         if (restoredThemeId) {
           this.selectedTheme = restoredThemeId;
         }
         if (typeof payload.selectedScheme === "string") {
           this.selectedScheme = normalizeSchemeId(this.selectedTheme, payload.selectedScheme);
+        }
+        if (typeof payload.selectedCustomColor === "string") {
+          this.selectedCustomColor = normalizeHexColor(payload.selectedCustomColor, DEFAULT_CUSTOM_COLOR);
         }
         if (typeof payload.currentStudioStep === "string" && this.studioSteps.some((step) => step.id === payload.currentStudioStep)) {
           this.currentStudioStep = payload.currentStudioStep;
