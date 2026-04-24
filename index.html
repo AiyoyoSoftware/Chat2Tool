@@ -15,15 +15,21 @@
       (() => {
         const stamp = Date.now().toString(36);
         window.__LLASTRO_ASSET_STAMP = stamp;
+        const pathname = window.location.pathname || "/";
+        const appBase = pathname
+          .replace(/\/import(?:\/[^/]+)?\/?$/, "/")
+          .replace(/\/index\.html$/, "/")
+          .replace(/\/$/, "");
+        const assetPath = (path) => `${appBase}${path}`;
 
         const stylesheet = document.createElement("link");
         stylesheet.rel = "stylesheet";
-        stylesheet.href = `./styles.css?v=${stamp}`;
+        stylesheet.href = `${assetPath("/styles.css")}?v=${stamp}`;
         document.head.appendChild(stylesheet);
 
-        ["./app.js", "./vendor/alpinejs.min.js"].forEach((src) => {
+        ["/app.js", "/vendor/alpinejs.min.js"].forEach((src) => {
           const script = document.createElement("script");
-          script.src = `${src}?v=${stamp}`;
+          script.src = `${assetPath(src)}?v=${stamp}`;
           script.async = false;
           document.head.appendChild(script);
         });
@@ -320,6 +326,7 @@
 
               <div class="button-row preview-toolbar__actions" style="margin-bottom: 1rem;">
                 <button type="button" class="button button-primary" @click="downloadExport()">Download HTML</button>
+                <button type="button" class="button button-secondary" @click="copyShareLink()">Copy Share Link</button>
                 <button type="button" class="button button-secondary" @click="copyStandalone()">Copy HTML</button>
               </div>
             </div>
@@ -466,6 +473,51 @@
         </section>
       </main>
 
+      <main class="workspace import-workspace" x-show="currentView === 'import'" x-cloak>
+        <section class="panel share-import-page">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Shared Tool</p>
+              <h2 x-text="pendingSharedImport?.app?.title || 'Open shared tool'"></h2>
+              <p class="muted-copy">This is a dedicated import page for a shared app link. Review the source before bringing it into your studio.</p>
+            </div>
+            <span class="status-pill" x-text="pendingSharedImportThemeLabel"></span>
+          </div>
+
+          <div class="issue issue-warning">
+            <strong>Trust check</strong>
+            <span>Chat2Tool sanitizes shared HTML, but imported tools can still do unexpected things. Only import apps from people and places you trust.</span>
+          </div>
+
+          <div class="share-import-grid" x-show="pendingSharedImport" x-cloak>
+            <article class="share-import-card">
+              <p class="mini-label">Exported from</p>
+              <strong x-text="pendingSharedImport?.exportedFrom || 'Unknown studio'"></strong>
+            </article>
+            <article class="share-import-card">
+              <p class="mini-label">Exported</p>
+              <strong x-text="pendingSharedImport?.exportedAt ? formatTimestamp(pendingSharedImport.exportedAt) : 'Unknown time'"></strong>
+            </article>
+            <article class="share-import-card">
+              <p class="mini-label">Summary</p>
+              <strong x-text="pendingSharedImport?.app?.summary || 'No summary included.'"></strong>
+            </article>
+          </div>
+
+          <div class="tag-row" x-show="pendingSharedImport?.app?.tags?.length" x-cloak>
+            <template x-for="tag in pendingSharedImport?.app?.tags || []" :key="`shared-${tag}`">
+              <span class="tag-chip tag-chip--small" x-text="tag"></span>
+            </template>
+          </div>
+
+          <div class="button-row">
+            <button type="button" class="button button-primary" @click="confirmSharedImport()">Trust And Import</button>
+            <button type="button" class="button button-secondary" @click="goToStudio()">Back To Studio</button>
+            <button type="button" class="button button-ghost" @click="cancelSharedImport()">Dismiss Link</button>
+          </div>
+        </section>
+      </main>
+
       <main class="workspace library-workspace" x-show="currentView === 'library'" x-cloak>
         <section class="panel panel-library">
           <div class="panel-head">
@@ -572,6 +624,7 @@
                   <div class="button-row" style="margin-bottom: 1rem;">
                     <button type="button" class="button button-primary" @click="openLibraryApp(activeLibraryApp.id)">Open Fullscreen</button>
                     <button type="button" class="button button-primary" @click="editLibraryApp(activeLibraryApp.id)">Edit Tool</button>
+                    <button type="button" class="button button-secondary" @click="copyLibraryShareLink(activeLibraryApp.id)">Copy Share Link</button>
                     <button type="button" class="button button-secondary" @click="downloadLibraryApp(activeLibraryApp.id)">Download</button>
                     <button type="button" class="button button-ghost" @click="deleteLibraryApp(activeLibraryApp.id)">Delete</button>
                   </div>

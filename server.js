@@ -167,7 +167,10 @@ async function handleApi(request, response, pathname) {
 }
 
 async function handleStatic(request, response, pathname) {
-  const filePath = resolveStaticPath(pathname);
+  const staticPath = pathname === "/import" || pathname.startsWith("/import/")
+    ? "/index.html"
+    : pathname;
+  const filePath = resolveStaticPath(staticPath);
   if (!filePath) {
     sendText(response, 403, "Forbidden");
     return;

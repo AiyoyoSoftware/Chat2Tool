@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chat2Tool</title>
+</head>
+<body>
+  <p>Redirecting to Chat2Tool...</p>
+  <script>
+    (function () {
+      var url = new URL(window.location.href);
+      var isGitHubPages = url.hostname.toLowerCase().endsWith(".github.io");
+      var segments = url.pathname.split("/").filter(Boolean);
+      var basePath = isGitHubPages && segments.length ? "/" + segments[0] : "";
+      var routeSegments = isGitHubPages ? segments.slice(1) : segments;
+      var routePath = "/" + routeSegments.join("/");
+
+      if (!/^\/import(?:\/[^/?#]+)?\/?$/.test(routePath)) {
+        document.body.textContent = "This page was not found.";
+        return;
+      }
+
+      var target = new URL((basePath || "") + "/", url.origin);
+      url.searchParams.forEach(function (value, key) {
+        target.searchParams.append(key, value);
+      });
+      target.searchParams.set("llastro-route", routePath);
+      target.hash = url.hash;
+      window.location.replace(target.toString());
+    }());
+  </script>
+</body>
+</html>

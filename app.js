@@ -10,6 +10,10 @@ const LIBRARY_API_PATH = "/api/library";
 const LIBRARY_STORAGE_AUTO = "auto";
 const LIBRARY_STORAGE_API = "api";
 const LIBRARY_STORAGE_LOCAL = "local";
+const PUBLIC_APP_URL = "https://aiyoyosoftware.github.io/Chat2Tool";
+const SHARED_IMPORT_ROUTE = "/import";
+const SHARED_IMPORT_REDIRECT_PARAM = "llastro-route";
+const SHARE_SPEC_VERSION = 1;
 const ASSET_STAMP = typeof window !== "undefined" ? String(window.__LLASTRO_ASSET_STAMP || "") : "";
 const ALPINE_RUNTIME_PATH = "./vendor/alpinejs.min.js";
 const LUCIDE_RUNTIME_PATH = "./vendor/lucide.min.js";
@@ -618,6 +622,109 @@ function relativeLuminance(value) {
 
 function readableTextOn(value, dark = "#101114", light = "#f8fbff") {
   return relativeLuminance(value) > 0.45 ? dark : light;
+}
+
+function bytesToBase64Url(bytes) {
+  let binary = "";
+  const chunkSize = 0x8000;
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function base64UrlToBytes(value) {
+  const normalized = String(value || "").trim().replace(/-/g, "+").replace(/_/g, "/");
+  const remainder = normalized.length % 4;
+  const padded = normalized + (remainder ? "=".repeat(4 - remainder) : "");
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes;
+}
+
+async function compressTextToBase64Url(value) {
+  if (typeof CompressionStream !== "function") {
+    throw new Error("CompressionStream is unavailable.");
+  }
+
+  const stream = new Blob([String(value || "")]).stream().pipeThrough(new CompressionStream("gzip"));
+  const buffer = await new Response(stream).arrayBuffer();
+  return bytesToBase64Url(new Uint8Array(buffer));
+}
+
+async function decompressBase64UrlToText(value) {
+  if (typeof DecompressionStream !== "function") {
+    throw new Error("DecompressionStream is unavailable.");
+  }
+
+  const bytes = base64UrlToBytes(value);
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Response(stream).text();
+}
+
+function getHostedBasePath(pathname = window.location.pathname) {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const hostname = window.location.hostname.toLowerCase();
+  const segments = String(pathname || "/").split("/").filter(Boolean);
+  return hostname.endsWith(".github.io") && segments.length ? `/${segments[0]}` : "";
+}
+
+function getCanonicalAppPath(pathname = window.location.pathname) {
+  const normalized = String(pathname || "/").replace(/\/import(?:\/[^/]+)?\/?$/, "/");
+  return normalized || "/";
+}
+
+function getAssetBasePath(pathname = window.location.pathname) {
+  return getCanonicalAppPath(pathname)
+    .replace(/\/index\.html$/, "/")
+    .replace(/\/$/, "");
+}
+
+function getSharedImportTokenFromPath(pathname = window.location.pathname) {
+  const match = String(pathname || "").match(/(?:^|\/)import\/([^/?#]+)/);
+  return match ? match[1] : "";
+}
+
+function normalizeSharedAppSpec(payload) {
+  if (!payload || payload.type !== "chat2tool-share" || Number(payload.version) !== SHARE_SPEC_VERSION) {
+    return null;
+  }
+
+  const app = payload.app;
+  if (!app || typeof app.html !== "string" || !app.html.trim()) {
+    return null;
+  }
+
+  const themeId = normalizeThemeId(app.themeId) || "";
+  const schemeId = themeId ? normalizeSchemeId(themeId, app.schemeId) : "";
+
+  return {
+    version: SHARE_SPEC_VERSION,
+    exportedAt: typeof payload.exportedAt === "string" ? payload.exportedAt : "",
+    exportedFrom: typeof payload.exportedFrom === "string" ? payload.exportedFrom.trim().slice(0, 240) : "",
+    app: {
+      title: typeof app.title === "string" && app.title.trim() ? app.title.trim().slice(0, 90) : "Shared Tool",
+      summary: typeof app.summary === "string" ? app.summary.trim().slice(0, 180) : "",
+      tags: normalizeTags(app.tags),
+      themeId,
+      schemeId,
+      source: typeof app.source === "string" && app.source.trim() ? app.source : app.html,
+      html: app.html
+    }
+  };
 }
 
 function deriveCustomScheme(themeId, customColor = DEFAULT_CUSTOM_COLOR) {
@@ -2701,6 +2808,8 @@ function createStudioApp() {
     isLibraryModalOpen: false,
     isLibraryHeaderExpanded: false,
     skipStudioResetOnNextEntry: false,
+    pendingSharedImport: null,
+    activeSharedImportToken: "",
     currentEditingId: "",
     currentEditingSourceTitle: "",
     editorEnabled: false,
@@ -2865,6 +2974,15 @@ function createStudioApp() {
 
     get draftTitle() {
       return this.appName.trim() || this.importedAppTitle || "Untitled Tool";
+    },
+
+    get pendingSharedImportThemeLabel() {
+      const spec = this.pendingSharedImport;
+      if (!spec?.app?.themeId) {
+        return "Theme pending";
+      }
+
+      return `${themeById(spec.app.themeId).name} · ${schemeById(spec.app.themeId, spec.app.schemeId).name}`;
     },
 
     get isSaveAsNew() {
@@ -3422,16 +3540,23 @@ function createStudioApp() {
       this.restoreState();
       this.applyAppTheme();
       window.addEventListener("message", (event) => this.handlePreviewEditorMessage(event));
-      window.addEventListener("hashchange", () => this.syncRouteFromLocation());
-      window.addEventListener("popstate", () => this.syncRouteFromLocation());
+      window.addEventListener("hashchange", () => void this.handleLocationChange());
+      window.addEventListener("popstate", () => void this.handleLocationChange());
+
+      const hasIncomingSharedImport = await this.loadPendingSharedImportFromLocation();
 
       if (!this.rawResponse.trim()) {
-        this.loadExample(true);
+        if (!hasIncomingSharedImport) {
+          this.loadExample(true);
+        }
       } else {
         this.importResponse(true);
       }
 
       this.syncRouteFromLocation();
+      if (hasIncomingSharedImport && this.pendingSharedImport) {
+        this.statusMessage = `Shared tool "${this.pendingSharedImport.app.title}" is ready to review.`;
+      }
     },
 
     handlePreviewEditorMessage(event) {
@@ -3595,9 +3720,16 @@ function createStudioApp() {
     },
 
     syncRouteFromLocation() {
+      const sharedImportToken = getSharedImportTokenFromPath();
       const hash = window.location.hash.replace(/^#/, "");
       const searchParams = new URLSearchParams(window.location.search);
       const wantsFullscreen = searchParams.get("fullscreen") === "1";
+
+      if (sharedImportToken) {
+        this.currentView = "import";
+        this.setLibraryModalOpen(false);
+        return;
+      }
 
       if (!hash || hash === "studio") {
         this.currentView = "studio";
@@ -3645,6 +3777,7 @@ function createStudioApp() {
 
     setRouteState(hash, { fullscreen = false, replace = false } = {}) {
       const nextUrl = new URL(window.location.href);
+      nextUrl.pathname = getCanonicalAppPath(nextUrl.pathname);
       nextUrl.hash = hash;
       if (fullscreen) {
         nextUrl.searchParams.set("fullscreen", "1");
@@ -3662,6 +3795,68 @@ function createStudioApp() {
       const historyMethod = replace ? "replaceState" : "pushState";
       window.history[historyMethod](null, "", nextLocation);
       this.syncRouteFromLocation();
+    },
+
+    rewriteHostedImportRedirect() {
+      const url = new URL(window.location.href);
+      const redirectedRoute = url.searchParams.get(SHARED_IMPORT_REDIRECT_PARAM);
+      if (!redirectedRoute) {
+        return false;
+      }
+
+      url.searchParams.delete(SHARED_IMPORT_REDIRECT_PARAM);
+      const nextRoute = redirectedRoute.startsWith("/") ? redirectedRoute : `/${redirectedRoute}`;
+      url.pathname = `${getHostedBasePath(url.pathname)}${nextRoute}`.replace(/\/{2,}/g, "/");
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+      return true;
+    },
+
+    async handleLocationChange() {
+      this.rewriteHostedImportRedirect();
+      await this.loadPendingSharedImportFromLocation();
+      this.syncRouteFromLocation();
+    },
+
+    async loadPendingSharedImportFromLocation() {
+      this.rewriteHostedImportRedirect();
+
+      const token = getSharedImportTokenFromPath();
+      if (!token) {
+        this.pendingSharedImport = null;
+        this.activeSharedImportToken = "";
+        return false;
+      }
+
+      if (token === this.activeSharedImportToken && this.pendingSharedImport) {
+        return true;
+      }
+
+      try {
+        const rawSpec = await decompressBase64UrlToText(token);
+        const payload = JSON.parse(rawSpec);
+        const spec = normalizeSharedAppSpec(payload);
+        if (!spec) {
+          throw new Error("Shared import payload is invalid.");
+        }
+
+        this.pendingSharedImport = spec;
+        this.activeSharedImportToken = token;
+        this.currentView = "import";
+        this.setLibraryModalOpen(false);
+        this.statusMessage = `Shared tool "${spec.app.title}" is ready to review.`;
+        return true;
+      } catch (error) {
+        console.error(error);
+        this.pendingSharedImport = null;
+        this.activeSharedImportToken = "";
+        const nextUrl = new URL(window.location.href);
+        nextUrl.pathname = getCanonicalAppPath(nextUrl.pathname);
+        nextUrl.hash = "#studio";
+        this.skipStudioResetOnNextEntry = true;
+        window.history.replaceState(null, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+        this.statusMessage = "Shared link could not be opened.";
+        return false;
+      }
     },
 
     goToStudio() {
@@ -4146,12 +4341,139 @@ function createStudioApp() {
       return app ? this.buildPreviewDocument(app.html, app.title) : "";
     },
 
+    buildSharedSpecFromEntry(entry) {
+      if (!entry || typeof entry.html !== "string" || !entry.html.trim()) {
+        return null;
+      }
+
+      const meta = extractAppMetadata(
+        entry.html,
+        entry.themeId || this.importedTheme || this.selectedTheme,
+        entry.schemeId || this.importedScheme || this.selectedScheme
+      );
+
+      return {
+        type: "chat2tool-share",
+        version: SHARE_SPEC_VERSION,
+        exportedAt: new Date().toISOString(),
+        exportedFrom: `${window.location.origin}${getCanonicalAppPath(window.location.pathname)}`,
+        app: {
+          title: typeof entry.title === "string" && entry.title.trim() ? entry.title.trim() : meta.title,
+          summary: typeof entry.summary === "string" && entry.summary.trim() ? entry.summary.trim() : meta.summary,
+          tags: normalizeTags(entry.tags?.length ? entry.tags : meta.tags),
+          themeId: meta.themeId,
+          schemeId: meta.schemeId,
+          source: typeof entry.source === "string" && entry.source.trim() ? entry.source : entry.html,
+          html: entry.html
+        }
+      };
+    },
+
+    buildCurrentShareSpec() {
+      if (!this.normalizedAppHtml) {
+        return null;
+      }
+
+      const meta = extractAppMetadata(
+        this.normalizedAppHtml,
+        this.importedTheme || this.selectedTheme,
+        this.importedScheme || this.selectedScheme
+      );
+      const manualTags = normalizeTags(this.appTags);
+
+      return this.buildSharedSpecFromEntry({
+        title: this.appName.trim() || meta.title,
+        summary: meta.summary,
+        tags: manualTags.length ? manualTags : meta.tags,
+        themeId: meta.themeId,
+        schemeId: meta.schemeId,
+        source: this.rawResponse.trim() || this.normalizedAppHtml,
+        html: this.normalizedAppHtml
+      });
+    },
+
+    async createShareLink(spec) {
+      if (!spec) {
+        throw new Error("Share spec is missing.");
+      }
+
+      const token = await compressTextToBase64Url(JSON.stringify(spec));
+      return `${PUBLIC_APP_URL}${SHARED_IMPORT_ROUTE}/${token}`;
+    },
+
     async copyPrompt() {
       await this.copyText(this.promptText, "Prompt copied.");
     },
 
     async copyStandalone() {
       await this.copyText(this.getStandaloneDocument(), "Standalone HTML copied.");
+    },
+
+    async copyShareLink() {
+      const spec = this.buildCurrentShareSpec();
+      if (!spec) {
+        this.statusMessage = "Import a generated tool before sharing.";
+        return;
+      }
+
+      try {
+        const link = await this.createShareLink(spec);
+        await this.copyText(link, "Share link copied.");
+      } catch (error) {
+        console.error(error);
+        this.statusMessage = "Share link could not be created in this browser.";
+      }
+    },
+
+    async copyLibraryShareLink(appId) {
+      const app = this.library.find((entry) => entry.id === appId);
+      if (!app) {
+        return;
+      }
+
+      try {
+        const link = await this.createShareLink(this.buildSharedSpecFromEntry(app));
+        await this.copyText(link, `Share link for "${app.title}" copied.`);
+      } catch (error) {
+        console.error(error);
+        this.statusMessage = "Share link could not be created in this browser.";
+      }
+    },
+
+    confirmSharedImport() {
+      const spec = this.pendingSharedImport;
+      if (!spec) {
+        return;
+      }
+
+      if (spec.app.themeId) {
+        this.selectedTheme = themeById(spec.app.themeId).id;
+      }
+      if (spec.app.themeId && spec.app.schemeId) {
+        this.selectedScheme = normalizeSchemeId(spec.app.themeId, spec.app.schemeId);
+      }
+
+      this.currentEditingId = "";
+      this.currentEditingSourceTitle = "";
+      this.appName = spec.app.title;
+      this.appTags = spec.app.tags.join(", ");
+      this.rawResponse = spec.app.source || spec.app.html;
+      this.currentStudioStep = "preview";
+      this.pendingSharedImport = null;
+      this.activeSharedImportToken = "";
+      this.importResponse();
+      this.statusMessage = `Imported shared tool "${spec.app.title}".`;
+      this.skipStudioResetOnNextEntry = true;
+      this.goToStudio();
+    },
+
+    cancelSharedImport() {
+      const title = this.pendingSharedImport?.app?.title || "shared tool";
+      this.pendingSharedImport = null;
+      this.activeSharedImportToken = "";
+      this.statusMessage = `Skipped importing "${title}".`;
+      this.skipStudioResetOnNextEntry = true;
+      this.goToStudio();
     },
 
     fallbackCopyText(text) {
@@ -4287,12 +4609,16 @@ function createStudioApp() {
     },
 
     withAssetStamp(path) {
+      const normalizedPath = String(path || "");
+      const absolutePath = normalizedPath.startsWith("/")
+        ? normalizedPath
+        : `${getAssetBasePath()}${normalizedPath.startsWith(".") ? normalizedPath.slice(1) : `/${normalizedPath}`}`;
       if (!ASSET_STAMP) {
-        return path;
+        return absolutePath;
       }
 
-      const separator = path.includes("?") ? "&" : "?";
-      return `${path}${separator}v=${encodeURIComponent(ASSET_STAMP)}`;
+      const separator = absolutePath.includes("?") ? "&" : "?";
+      return `${absolutePath}${separator}v=${encodeURIComponent(ASSET_STAMP)}`;
     },
 
     writeLocalLibrary(nextLibrary = this.library) {

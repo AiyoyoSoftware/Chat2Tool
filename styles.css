@@ -1000,6 +1000,47 @@ textarea[readonly] {
   margin: var(--space-md) 0;
 }
 
+.share-import-panel {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--panel-border);
+  background: color-mix(in srgb, var(--panel-bg) 90%, white);
+}
+
+.share-import-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.share-import-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--panel-border);
+  background: color-mix(in srgb, var(--page-bg) 30%, white);
+}
+
+.share-import-card .mini-label,
+.share-import-card strong {
+  margin: 0;
+}
+
+.import-workspace {
+  align-items: start;
+}
+
+.share-import-page {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
 .issue {
   display: grid;
   gap: 0.3rem;
