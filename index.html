@@ -3,14 +3,32 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Chat2Tool | Personal Tool Studio</title>
     <meta
       name="description"
       content="Turn conversations and notes into reusable, theme-constrained Alpine.js tools."
     >
-    <link rel="stylesheet" href="./styles.css">
-    <script defer src="./app.js"></script>
-    <script defer src="./vendor/alpinejs.min.js"></script>
+    <script>
+      (() => {
+        const stamp = Date.now().toString(36);
+        window.__LLASTRO_ASSET_STAMP = stamp;
+
+        const stylesheet = document.createElement("link");
+        stylesheet.rel = "stylesheet";
+        stylesheet.href = `./styles.css?v=${stamp}`;
+        document.head.appendChild(stylesheet);
+
+        ["./app.js", "./vendor/alpinejs.min.js"].forEach((src) => {
+          const script = document.createElement("script");
+          script.src = `${src}?v=${stamp}`;
+          script.async = false;
+          document.head.appendChild(script);
+        });
+      })();
+    </script>
   </head>
   <body>
     <div class="shell" x-data="studioApp()" x-init="boot()" @keydown.escape.window="closeLibraryModal()">
