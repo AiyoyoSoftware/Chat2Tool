@@ -1135,6 +1135,7 @@ const MINIMAL_FRAMEWORK_CSS = `
 [data-llastro-app] .card-grid {
   display: grid;
   gap: 1rem;
+  align-items: start;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 [data-llastro-app] .hero,
