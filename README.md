@@ -72,6 +72,11 @@ Helper classes available to generated tools:
 
 No build step is required. The bundled Node server serves the static studio and persists the local tool library to disk.
 
+The studio now autodetects library storage:
+
+- If `/api/library` is available, saved tools use the server-backed library and mirror to browser storage as a backup.
+- If `/api/library` is unavailable, saved tools fall back to browser-only `localStorage`, so the app still works on static hosting without a writable server volume.
+
 Requires Node.js 20 or newer.
 
 ```bash
@@ -112,7 +117,7 @@ The host injects:
 - Alpine.js from the vendored browser runtime
 - the vendored Lucide browser runtime from `vendor/lucide.min.js`
 - the pasted HTML fragment inside a standalone document shell
-- filesystem-backed library persistence in `data/library.json` for saved tools
+- autodetected library persistence using either `/api/library` or browser `localStorage`
 
 ## Files
 

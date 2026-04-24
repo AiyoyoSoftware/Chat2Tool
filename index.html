@@ -57,7 +57,8 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">Tool Builder</p>
-              <h2>Promote one useful workflow into a saved tool</h2>
+              <h2>Build a tool in 4 quick steps</h2>
+              <p class="muted-copy">Pick the prompt type, choose a theme, copy the prompt, paste the result, then edit.</p>
             </div>
             <span class="status-pill" x-text="`Step ${currentStudioStepIndex + 1} of ${studioSteps.length}`"></span>
           </div>
@@ -75,7 +76,6 @@
                   <span class="wizard-step__count" x-text="index + 1"></span>
                   <span class="wizard-step__body">
                     <strong x-text="step.label"></strong>
-                    <span x-text="step.summary"></span>
                   </span>
                 </button>
               </li>
@@ -86,8 +86,9 @@
         <section class="panel" x-show="currentStudioStep === 'brief'" x-cloak>
           <div class="panel-head">
             <div>
-              <p class="eyebrow">1. Source</p>
-              <h2>Choose where this tool comes from</h2>
+              <p class="eyebrow">1. Prompt</p>
+              <h2>Choose the source</h2>
+              <p class="muted-copy">Use this chat or write a short brief.</p>
             </div>
             <span class="status-pill" x-text="activePromptMode.name"></span>
           </div>
@@ -111,20 +112,16 @@
           <label class="field" x-show="promptMode === 'custom'" x-cloak>
             <span>Tool brief</span>
             <textarea
+              class="wizard-textarea wizard-textarea--brief"
               x-model="appBrief"
-              rows="7"
+              rows="5"
               placeholder="Example: Turn my donor notes into a pledge tracker with milestones, follow-ups, and a quick add form."
             ></textarea>
           </label>
 
           <section class="prompt-mode-note" x-show="promptMode === 'conversation'" x-cloak>
-            <p class="mini-label">Conversation flow</p>
-            <h3>Use the current chat as the requirements source.</h3>
-            <p class="muted-copy">
-              The generated prompt asks ChatGPT to distill the active conversation into one working tool,
-              keep the scope tight, and ignore side chatter. Paste it into the same conversation you want to
-              preserve as something usable.
-            </p>
+            <p class="mini-label">Conversation mode</p>
+            <p class="muted-copy">In the next step, copy the prompt and send it to the LLM in an existing conversation.</p>
           </section>
 
           <div class="button-row" x-show="promptMode === 'custom'" x-cloak>
@@ -135,8 +132,9 @@
         <section class="panel" x-show="currentStudioStep === 'theme'" x-cloak>
           <div class="panel-head">
             <div>
-              <p class="eyebrow">2. Theme + Color Scheme</p>
-              <h2>Choose how the tool should feel</h2>
+              <p class="eyebrow">2. Theme</p>
+              <h2>Pick the look</h2>
+              <p class="muted-copy">Choose a theme and color scheme. You can still edit the tool after import.</p>
             </div>
             <span class="status-pill" x-text="`${currentTheme.name} · ${currentScheme.name}`"></span>
           </div>
@@ -158,6 +156,11 @@
             </template>
           </div>
 
+          <div class="wizard-subhead" x-ref="themeSchemeHeading">
+            <p class="mini-label">Color scheme</p>
+            <p class="wizard-subhead__copy">Choose one variant for this theme.</p>
+          </div>
+
           <div class="scheme-grid">
             <template x-for="scheme in currentSchemes" :key="`${currentTheme.id}-${scheme.id}`">
               <button
@@ -174,53 +177,23 @@
             </template>
           </div>
 
-          <section class="theme-preview-panel">
+          <section class="theme-preview-panel" x-ref="themePreviewPanel">
             <div class="theme-preview-panel__head">
               <div>
-                <p class="mini-label">Live theme fixture</p>
+                <p class="mini-label">Preview</p>
                 <h3 x-text="`${currentTheme.name} · ${currentScheme.name}`"></h3>
-                <p class="muted-copy" x-text="currentTheme.semanticHint"></p>
+                <p class="muted-copy" x-text="currentScheme.summary"></p>
               </div>
-              <div class="reference-card__meta">
-                <span class="status-pill" x-text="currentTheme.label"></span>
-                <span class="status-pill" x-text="currentScheme.name"></span>
-              </div>
+              <p class="theme-preview-panel__hint" x-text="currentTheme.semanticHint"></p>
             </div>
 
-            <div class="theme-preview-panel__layout">
-              <aside class="theme-preview-panel__notes stack">
-                <div>
-                  <p class="reference-coverage"><strong>Covers:</strong> <span x-text="referenceCoverageLabel"></span></p>
-                </div>
-
-                <div>
-                  <p class="mini-label">Theme cues</p>
-                  <ul class="reference-list">
-                    <template x-for="cue in currentTheme.semanticCues" :key="cue">
-                      <li x-text="cue"></li>
-                    </template>
-                  </ul>
-                </div>
-
-                <div class="reference-scheme">
-                  <div class="reference-scheme__head">
-                    <div>
-                      <strong x-text="currentScheme.name"></strong>
-                      <span x-text="currentScheme.summary"></span>
-                    </div>
-                    <div class="reference-scheme__swatch" :style="`background:${currentScheme.gradient}`"></div>
-                  </div>
-                </div>
-              </aside>
-
-              <iframe
-                class="reference-preview theme-preview-frame"
-                :title="`${currentTheme.name} ${currentScheme.name} semantic preview`"
-                :srcdoc="currentStudioStep === 'theme' ? buildReferencePreview(currentTheme.id, currentScheme.id) : ''"
-                loading="lazy"
-                sandbox="allow-scripts allow-forms allow-modals"
-              ></iframe>
-            </div>
+            <iframe
+              class="reference-preview theme-preview-frame"
+              :title="`${currentTheme.name} ${currentScheme.name} semantic preview`"
+              :srcdoc="currentStudioStep === 'theme' ? buildReferencePreview(currentTheme.id, currentScheme.id) : ''"
+              loading="lazy"
+              sandbox="allow-scripts allow-forms allow-modals"
+            ></iframe>
           </section>
 
         </section>
@@ -228,36 +201,44 @@
         <section class="panel" x-show="currentStudioStep === 'handoff'" x-cloak>
           <div class="panel-head">
             <div>
-              <p class="eyebrow">3. Generate Tool</p>
-              <h2>Copy the prompt, then paste the generated tool</h2>
+              <p class="eyebrow">3. Copy + Paste</p>
+              <h2>Generate the tool</h2>
+              <p class="muted-copy">Copy the prompt, run it in ChatGPT, then paste the single HTML result here.</p>
             </div>
             <span class="status-pill" x-text="detectedThemeLabel"></span>
           </div>
 
-          <p class="muted-copy" x-text="promptFieldHint"></p>
+          <div class="handoff-grid">
+            <section class="handoff-panel">
+              <p class="mini-label">Copy</p>
+              <label class="field">
+                <span x-text="promptFieldLabel"></span>
+                <textarea class="wizard-textarea wizard-textarea--handoff" x-bind:value="promptText" rows="12" readonly></textarea>
+              </label>
 
-          <label class="field">
-            <span x-text="promptFieldLabel"></span>
-            <textarea x-bind:value="promptText" rows="18" readonly></textarea>
-          </label>
+              <div class="button-row">
+                <button type="button" class="button button-primary" @click="copyPrompt()">Copy Prompt</button>
+                <button type="button" class="button button-secondary" @click="loadExample()">Load Example Tool</button>
+              </div>
+            </section>
 
-          <div class="button-row">
-            <button type="button" class="button button-primary" @click="copyPrompt()">Copy Prompt</button>
-            <button type="button" class="button button-secondary" @click="loadExample()">Load Example Tool</button>
-          </div>
+            <section class="handoff-panel">
+              <p class="mini-label">Paste</p>
+              <label class="field">
+                <span>Generated tool</span>
+                <textarea
+                  class="wizard-textarea wizard-textarea--handoff"
+                  x-model="rawResponse"
+                  @input="handleRawResponseInput()"
+                  rows="12"
+                  placeholder="Paste the single ```html block from ChatGPT here."
+                ></textarea>
+              </label>
 
-          <label class="field">
-            <span>Generated tool response or raw HTML fragment</span>
-            <textarea
-              x-model="rawResponse"
-              @input="handleRawResponseInput()"
-              rows="18"
-              placeholder="Paste the single ```html block from ChatGPT here."
-            ></textarea>
-          </label>
-
-          <div class="button-row">
-            <button type="button" class="button button-ghost" @click="clearResponse()">Clear</button>
+              <div class="button-row">
+                <button type="button" class="button button-ghost" @click="clearResponse()">Clear</button>
+              </div>
+            </section>
           </div>
 
           <div class="issues" x-show="issues.length">
@@ -274,14 +255,15 @@
         <section class="panel panel-preview" x-show="currentStudioStep === 'preview'" x-cloak>
           <div class="panel-head">
             <div>
-              <p class="eyebrow">4. Review + Save</p>
-              <h2>Tool workbench</h2>
+              <p class="eyebrow">4. Edit + Save</p>
+              <h2>Finish the tool</h2>
+              <p class="muted-copy">Preview it, make quick edits, then save or export.</p>
             </div>
             <span class="status-pill" x-text="publishStateLabel"></span>
           </div>
 
           <div class="preview-toolbar">
-            <p class="preview-copy" x-text="editorEnabled ? 'Edit mode turns the tool preview into a direct-edit canvas. Tap or click any text or block to select it.' : 'The tool runs inside a sandboxed iframe with Alpine and Lucide preloaded. Saved and exported tools keep the same theme framework.'"></p>
+            <p class="preview-copy" x-text="editorEnabled ? 'Edit mode lets you click text or blocks in the preview.' : 'Preview the tool, then turn on edit mode for quick fixes.'"></p>
 
             <div class="preview-toolbar__controls">
               <div class="preview-toggle-group" role="group" aria-label="Preview editor">
@@ -294,7 +276,7 @@
                 ></button>
               </div>
 
-              <div class="button-row">
+              <div class="button-row preview-toolbar__actions" style="margin-bottom: 1rem;">
                 <button type="button" class="button button-primary" @click="downloadExport()">Download HTML</button>
                 <button type="button" class="button button-secondary" @click="copyStandalone()">Copy HTML</button>
               </div>
@@ -305,7 +287,7 @@
             <div>
               <p class="mini-label">Library metadata</p>
               <h3>Name and tag this tool</h3>
-              <p class="muted-copy">Use what ChatGPT inferred or adjust it before saving.</p>
+              <p class="muted-copy">Adjust these before saving if needed.</p>
             </div>
 
             <div class="tool-metadata-grid">
@@ -332,8 +314,7 @@
           <div class="preview-shell" :class="{ 'is-editor-open': editorEnabled }">
             <section class="preview-stage">
               <div class="preview-stage__bar">
-                <div>
-                  <p class="mini-label">Canvas</p>
+                <div style="margin-top: 1rem;">
                   <h3>Tool preview</h3>
                 </div>
               </div>
@@ -423,14 +404,11 @@
         </section>
 
         <section class="panel wizard-nav">
-          <div>
-            <p class="mini-label" x-text="`Current step: ${currentStudioStepIndex + 1} of ${studioSteps.length}`"></p>
-            <h2 x-text="currentStudioStepMeta.label"></h2>
-            <p class="muted-copy" x-text="currentStudioStepMeta.summary"></p>
-            <p class="wizard-nav__hint" x-show="previousStudioStepMeta || nextStudioStepMeta" x-cloak>
-              <span x-show="previousStudioStepMeta" x-text="previousStudioStepMeta ? `Back: ${previousStudioStepMeta.label}` : ''"></span>
-              <span x-show="previousStudioStepMeta && nextStudioStepMeta"> · </span>
-              <span x-show="nextStudioStepMeta" x-text="nextStudioStepMeta ? `Next: ${nextStudioStepMeta.label}` : ''"></span>
+          <div class="wizard-nav__copy">
+            <p class="mini-label" x-text="`Step ${currentStudioStepIndex + 1} of ${studioSteps.length}`"></p>
+            <p class="wizard-nav__summary">
+              <strong x-text="currentStudioStepMeta.label"></strong>
+              <span x-text="currentStudioStepMeta.summary"></span>
             </p>
           </div>
 
@@ -635,8 +613,6 @@
             <div class="settings-preview__surface">
               <span class="status-pill" x-text="currentAppTheme.label"></span>
               <span class="status-pill" x-text="currentAppScheme.name"></span>
-              <span class="preview-button preview-button--primary">Primary</span>
-              <span class="preview-button preview-button--secondary">Secondary</span>
             </div>
           </section>
         </section>

@@ -4,6 +4,9 @@ const SCHEME_MARKER = "data-llastro-scheme";
 const STORAGE_KEY = "llastro-studio-v2";
 const LIBRARY_KEY = "llastro-library-v1";
 const LIBRARY_API_PATH = "/api/library";
+const LIBRARY_STORAGE_AUTO = "auto";
+const LIBRARY_STORAGE_API = "api";
+const LIBRARY_STORAGE_LOCAL = "local";
 const ALPINE_RUNTIME_PATH = "./vendor/alpinejs.min.js";
 const LUCIDE_RUNTIME_PATH = "./vendor/lucide.min.js";
 const THEMES = [
@@ -442,40 +445,40 @@ const REFERENCE_COVERAGE = [
 const STUDIO_STEPS = [
   {
     id: "brief",
-    label: "Source",
-    summary: "Choose whether this tool comes from a conversation or a custom brief."
+    label: "Prompt",
+    summary: "Choose the source."
   },
   {
     id: "theme",
-    label: "Theme + Scheme",
-    summary: "Choose the visual system your saved tool should use."
+    label: "Theme",
+    summary: "Pick the look."
   },
   {
     id: "handoff",
-    label: "Generate",
-    summary: "Send the prompt to ChatGPT, then paste the generated tool back here."
+    label: "Paste",
+    summary: "Copy the prompt and paste the result."
   },
   {
     id: "preview",
-    label: "Review + Save",
-    summary: "Review the tool, confirm its title and tags, then save or export it."
+    label: "Edit",
+    summary: "Tweak, save, or export."
   }
 ];
 
 const PROMPT_MODES = [
   {
     id: "custom",
-    eyebrow: "Write the source",
-    name: "Use Custom Brief",
-    summary: "Describe the workflow you want to preserve as a tool.",
-    detail: "Best for turning a fresh note, checklist, or idea into an interface."
+    eyebrow: "Write it",
+    name: "Custom Brief",
+    summary: "Describe the workflow you want.",
+    detail: "Best for a note, checklist, or idea."
   },
   {
     id: "conversation",
-    eyebrow: "Distill the chat",
-    name: "Use Conversation",
-    summary: "Turn the active chat into one focused reusable tool.",
-    detail: "Best when the useful workflow already exists in a conversation."
+    eyebrow: "Use this chat",
+    name: "This Conversation",
+    summary: "Turn the current chat into one focused tool.",
+    detail: "Best when the workflow is already here."
   }
 ];
 
@@ -1794,6 +1797,7 @@ function createStudioApp() {
     importedAppTitle: "Untitled Tool",
     currentView: "studio",
     library: [],
+    activeLibraryStorage: LIBRARY_STORAGE_AUTO,
     activeLibraryId: "",
     librarySearch: "",
     activeTagFilters: [],
@@ -1806,6 +1810,7 @@ function createStudioApp() {
     editorSelection: null,
     editorTextDraft: "",
     editorTextTimer: 0,
+    themeScrollTimer: 0,
     statusMessage: "Loading framework and icon runtime...",
 
     get currentTheme() {
@@ -1936,15 +1941,17 @@ function createStudioApp() {
     },
 
     get libraryStatusLabel() {
+      const storageLabel = this.activeLibraryStorage === LIBRARY_STORAGE_LOCAL ? "Browser only" : "Server library";
+
       if (!this.publishedApps.length) {
-        return "No saved apps";
+        return `No saved apps · ${storageLabel}`;
       }
 
       if (this.filteredLibraryApps.length === this.publishedApps.length) {
-        return `${this.publishedApps.length} saved`;
+        return `${this.publishedApps.length} saved · ${storageLabel}`;
       }
 
-      return `${this.filteredLibraryApps.length} of ${this.publishedApps.length} shown`;
+      return `${this.filteredLibraryApps.length} of ${this.publishedApps.length} shown · ${storageLabel}`;
     },
 
     get activeLibraryApp() {
@@ -1994,10 +2001,10 @@ function createStudioApp() {
 
     get promptFieldLabel() {
       if (this.promptMode === "conversation") {
-        return "Prompt to paste into the existing ChatGPT conversation";
+        return "Prompt for this conversation";
       }
 
-      return "Prompt to paste into ChatGPT";
+      return "Prompt for ChatGPT";
     },
 
     get promptFieldHint() {
@@ -2005,7 +2012,7 @@ function createStudioApp() {
         return "Send this in the same conversation you want to turn into a reusable tool.";
       }
 
-      return "Send this in a fresh ChatGPT prompt or a working thread for the note or workflow you want to make usable.";
+      return "Send this in ChatGPT, then paste the HTML result back here.";
     },
 
     buildPromptText() {
@@ -2267,6 +2274,7 @@ function createStudioApp() {
       this.selectedScheme = themeById(themeId).schemes[0]?.id || "";
       this.applySelectedThemeToDraft();
       this.saveState();
+      this.scrollThemePickerTarget("themeSchemeHeading");
     },
 
     selectPromptMode(modeId) {
@@ -2285,6 +2293,7 @@ function createStudioApp() {
       this.selectedScheme = normalizeSchemeId(this.selectedTheme, schemeId);
       this.applySelectedThemeToDraft();
       this.saveState();
+      this.scrollThemePickerTarget("themePreviewPanel");
     },
 
     handleRawResponseInput() {
@@ -2339,6 +2348,44 @@ function createStudioApp() {
         window.requestAnimationFrame(() => {
           this.$refs.studioWorkspace?.scrollIntoView({ block: "start" });
         });
+      });
+    },
+
+    scrollThemePickerTarget(refName) {
+      if (this.currentStudioStep !== "theme") {
+        return;
+      }
+
+      const reducedMotion = window.matchMedia
+        ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        : false;
+
+      if (this.themeScrollTimer) {
+        clearTimeout(this.themeScrollTimer);
+        this.themeScrollTimer = 0;
+      }
+
+      this.$nextTick(() => {
+        this.themeScrollTimer = window.setTimeout(() => {
+          this.themeScrollTimer = 0;
+
+          window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+              const target = this.$refs[refName];
+              if (!(target instanceof HTMLElement)) {
+                return;
+              }
+
+              const baseOffset = refName === "themeSchemeHeading" ? 20 : 16;
+              const top = Math.max(0, window.scrollY + target.getBoundingClientRect().top - baseOffset);
+
+              window.scrollTo({
+                top,
+                behavior: reducedMotion ? "auto" : "smooth"
+              });
+            });
+          });
+        }, reducedMotion ? 0 : 160);
       });
     },
 
@@ -3241,7 +3288,7 @@ function createStudioApp() {
         });
     },
 
-    readLegacyLibrary() {
+    readLocalLibrary() {
       try {
         const raw = localStorage.getItem(LIBRARY_KEY);
         if (!raw) {
@@ -3255,7 +3302,19 @@ function createStudioApp() {
       }
     },
 
-    async saveLibrary(nextLibrary = this.library) {
+    shouldForceLocalLibraryStorage() {
+      const hostname = window.location.hostname.toLowerCase();
+      return window.location.protocol === "file:" || hostname.endsWith(".github.io");
+    },
+
+    writeLocalLibrary(nextLibrary = this.library) {
+      const library = this.normalizeLibraryPayload(nextLibrary);
+      localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+      this.library = library;
+      return library;
+    },
+
+    async saveLibraryToApi(nextLibrary = this.library) {
       const response = await fetch(LIBRARY_API_PATH, {
         method: "PUT",
         headers: {
@@ -3270,39 +3329,87 @@ function createStudioApp() {
 
       const payload = await response.json();
       const library = this.normalizeLibraryPayload(payload.library);
+      localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
       this.library = library;
       return library;
     },
 
-    async loadLibrary() {
-      const legacyLibrary = this.readLegacyLibrary();
+    async saveLibrary(nextLibrary = this.library) {
+      if (this.shouldForceLocalLibraryStorage()) {
+        this.activeLibraryStorage = LIBRARY_STORAGE_LOCAL;
+        return this.writeLocalLibrary(nextLibrary);
+      }
+
+      if (this.activeLibraryStorage === LIBRARY_STORAGE_LOCAL) {
+        return this.writeLocalLibrary(nextLibrary);
+      }
 
       try {
-        const response = await fetch(LIBRARY_API_PATH, { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error(`Library load failed with ${response.status}`);
-        }
+        const library = await this.saveLibraryToApi(nextLibrary);
+        this.activeLibraryStorage = LIBRARY_STORAGE_API;
+        return library;
+      } catch (error) {
+        this.activeLibraryStorage = LIBRARY_STORAGE_LOCAL;
+        return this.writeLocalLibrary(nextLibrary);
+      }
+    },
 
-        const payload = await response.json();
-        const serverLibrary = this.normalizeLibraryPayload(payload.library);
+    async loadLibraryFromApi() {
+      const response = await fetch(LIBRARY_API_PATH, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`Library load failed with ${response.status}`);
+      }
+
+      const payload = await response.json();
+      return this.normalizeLibraryPayload(payload.library);
+    },
+
+    async loadLibrary() {
+      const localLibrary = this.readLocalLibrary();
+
+      if (this.shouldForceLocalLibraryStorage()) {
+        this.activeLibraryStorage = LIBRARY_STORAGE_LOCAL;
+        this.library = localLibrary;
+        if (window.location.hostname.toLowerCase().endsWith(".github.io")) {
+          this.statusMessage = localLibrary.length
+            ? "GitHub Pages detected. Loaded the browser library."
+            : "GitHub Pages detected. Using browser storage for saved tools.";
+        }
+        return;
+      }
+
+      try {
+        const serverLibrary = await this.loadLibraryFromApi();
+        this.activeLibraryStorage = LIBRARY_STORAGE_API;
 
         if (serverLibrary.length) {
           this.library = serverLibrary;
           return;
         }
 
-        if (legacyLibrary.length) {
-          await this.saveLibrary(legacyLibrary);
-        }
-      } catch (error) {
-        console.error(error);
-        if (legacyLibrary.length) {
-          this.library = legacyLibrary;
-          this.statusMessage = "Library API unavailable. Loaded the browser backup instead.";
+        if (localLibrary.length) {
+          try {
+            await this.saveLibraryToApi(localLibrary);
+            this.activeLibraryStorage = LIBRARY_STORAGE_API;
+            this.statusMessage = "Library restored from this browser and synced to the server.";
+          } catch (saveError) {
+            this.activeLibraryStorage = LIBRARY_STORAGE_LOCAL;
+            this.library = localLibrary;
+            this.statusMessage = "Library API unavailable. Using browser storage instead.";
+          }
           return;
         }
 
-        this.statusMessage = "Library could not be restored.";
+        this.library = [];
+        return;
+      } catch (error) {
+        this.activeLibraryStorage = LIBRARY_STORAGE_LOCAL;
+        this.library = localLibrary;
+        if (localLibrary.length) {
+          this.statusMessage = "Library API unavailable. Loaded the browser library instead.";
+        } else {
+          this.statusMessage = "Library API unavailable. Using browser storage instead.";
+        }
       }
     },
 
@@ -3351,7 +3458,7 @@ function createStudioApp() {
         await this.saveLibrary(nextLibrary);
       } catch (error) {
         console.error(error);
-        this.statusMessage = "Library save failed. Check that the llastro server is running.";
+        this.statusMessage = "Library save failed.";
         return;
       }
 
@@ -3363,7 +3470,9 @@ function createStudioApp() {
       this.appTags = entry.tags.join(", ");
       this.saveState();
       this.goToLibrary(entry.id);
-      this.statusMessage = existingApp ? `Updated "${entry.title}".` : `Saved "${entry.title}" to the library.`;
+      this.statusMessage = existingApp
+        ? `Updated "${entry.title}" in ${this.activeLibraryStorage === LIBRARY_STORAGE_LOCAL ? "browser" : "server"} storage.`
+        : `Saved "${entry.title}" to ${this.activeLibraryStorage === LIBRARY_STORAGE_LOCAL ? "browser" : "server"} storage.`;
     },
 
     async deleteLibraryApp(appId) {
@@ -3385,7 +3494,7 @@ function createStudioApp() {
         await this.saveLibrary(nextLibrary);
       } catch (error) {
         console.error(error);
-        this.statusMessage = "Library delete failed. Check that the llastro server is running.";
+        this.statusMessage = "Library delete failed.";
         return;
       }
 
@@ -3407,7 +3516,7 @@ function createStudioApp() {
         this.goToLibrary();
       }
 
-      this.statusMessage = `Deleted "${app.title}".`;
+      this.statusMessage = `Deleted "${app.title}" from ${this.activeLibraryStorage === LIBRARY_STORAGE_LOCAL ? "browser" : "server"} storage.`;
     },
 
     saveState() {
