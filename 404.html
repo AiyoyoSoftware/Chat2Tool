@@ -16,7 +16,7 @@
       var routeSegments = isGitHubPages ? segments.slice(1) : segments;
       var routePath = "/" + routeSegments.join("/");
 
-      if (!/^\/import(?:\/[^/?#]+)?\/?$/.test(routePath)) {
+      if (!/^\/(?:import|i)(?:\/[^/?#]+)?\/?$/.test(routePath)) {
         document.body.textContent = "This page was not found.";
         return;
       }
