@@ -1584,6 +1584,146 @@ function buildPreviewEditorRuntime() {
     return current;
   };
 
+  const isPlaceholderListItem = (node) => {
+    if (!node || node.tagName?.toLowerCase() !== "li") {
+      return false;
+    }
+
+    if (node.querySelector("input, select, textarea, button, a[href], img, svg, canvas, video, audio, iframe, progress, meter, details, table, [data-lucide]")) {
+      return false;
+    }
+
+    const normalizedHtml = node.innerHTML
+      .replace(/<br\\s*\\/?>/gi, "")
+      .replace(/&nbsp;/gi, "")
+      .trim();
+
+    return !normalizedHtml && !node.textContent.trim();
+  };
+
+  const cleanupListAncestors = (node) => {
+    let current = node;
+    while (current && current !== state.root) {
+      const tagName = current.tagName?.toLowerCase();
+      if (tagName === "ul" || tagName === "ol") {
+        [...current.children].forEach((child) => {
+          if (isPlaceholderListItem(child)) {
+            child.remove();
+          }
+        });
+
+        const hasListItems = [...current.children].some((child) => child.tagName?.toLowerCase() === "li");
+        const hasDirectMeaningfulChild = [...current.children].some((child) => {
+          if (child.tagName?.toLowerCase() === "template") {
+            return true;
+          }
+
+          if (child.tagName?.toLowerCase() === "li") {
+            return !isPlaceholderListItem(child);
+          }
+
+          return true;
+        });
+        const hasMeaningfulText = [...current.childNodes].some((child) => {
+          return child.nodeType === Node.TEXT_NODE && child.textContent.trim();
+        });
+
+        if (!hasListItems && !hasDirectMeaningfulChild && !hasMeaningfulText) {
+          const emptyList = current;
+          current = current.parentElement;
+          emptyList.remove();
+          continue;
+        }
+      }
+
+      current = current.parentElement;
+    }
+  };
+
+  const cleanupAllLists = (root = state.root) => {
+    if (!root) {
+      return;
+    }
+
+    [...root.querySelectorAll("ul, ol")].reverse().forEach((list) => {
+      [...list.children].forEach((child) => {
+        if (isPlaceholderListItem(child)) {
+          child.remove();
+        }
+      });
+
+      const hasListItems = [...list.children].some((child) => child.tagName?.toLowerCase() === "li");
+      const hasDirectMeaningfulChild = [...list.children].some((child) => {
+        if (child.tagName?.toLowerCase() === "template") {
+          return true;
+        }
+
+        if (child.tagName?.toLowerCase() === "li") {
+          return !isPlaceholderListItem(child);
+        }
+
+        return true;
+      });
+      const hasMeaningfulText = [...list.childNodes].some((child) => {
+        return child.nodeType === Node.TEXT_NODE && child.textContent.trim();
+      });
+
+      if (!hasListItems && !hasDirectMeaningfulChild && !hasMeaningfulText) {
+        list.remove();
+      }
+    });
+  };
+
+  const elementMatchesTemplateBlueprint = (node, blueprint) => {
+    if (!node || node.nodeType !== Node.ELEMENT_NODE || !blueprint || blueprint.nodeType !== Node.ELEMENT_NODE) {
+      return false;
+    }
+
+    if (node.tagName !== blueprint.tagName) {
+      return false;
+    }
+
+    const blueprintClasses = [...blueprint.classList];
+    if (blueprintClasses.length && !blueprintClasses.every((token) => node.classList.contains(token))) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const cleanupTemplateArtifacts = (root = state.root) => {
+    if (!root) {
+      return;
+    }
+
+    root.querySelectorAll("template[x-for], template[x-if]").forEach((template) => {
+      const blueprint = template.content.firstElementChild;
+      if (!blueprint) {
+        return;
+      }
+
+      let sibling = template.nextSibling;
+      while (sibling) {
+        const nextSibling = sibling.nextSibling;
+
+        if (sibling.nodeType === Node.TEXT_NODE && !sibling.textContent.trim()) {
+          sibling = nextSibling;
+          continue;
+        }
+
+        if (!elementMatchesTemplateBlueprint(sibling, blueprint)) {
+          break;
+        }
+
+        sibling.remove();
+        if (template.hasAttribute("x-if")) {
+          break;
+        }
+        sibling = nextSibling;
+      }
+    });
+  };
+
   const describeMoveTarget = (node) => {
     const parentTagName = node.parentElement?.tagName?.toLowerCase() || "parent";
 
@@ -1703,7 +1843,10 @@ function buildPreviewEditorRuntime() {
   };
 
   const serializeHtml = () => {
+    cleanupAllLists(state.root);
     const clone = state.root.cloneNode(true);
+    cleanupAllLists(clone);
+    cleanupTemplateArtifacts(clone);
     [clone, ...clone.querySelectorAll("*")].forEach((node) => {
       [...node.classList]
         .filter((token) => token.startsWith("ll-editor-"))
@@ -1819,8 +1962,12 @@ function buildPreviewEditorRuntime() {
       return;
     }
 
+    const ancestorList = node.closest("ul, ol");
     const fallbackTarget = node.previousElementSibling || node.nextElementSibling || node.parentElement;
     node.remove();
+    if (ancestorList) {
+      cleanupListAncestors(ancestorList);
+    }
 
     const nextTextNode = fallbackTarget && fallbackTarget !== state.root ? findTextTarget(fallbackTarget) : null;
     const nextMoveNode = fallbackTarget && fallbackTarget !== state.root ? findMoveTarget(fallbackTarget) : null;
@@ -2105,6 +2252,134 @@ function extractAppMetadata(appHtml, fallbackTheme, fallbackScheme) {
     schemeId,
     customColor
   };
+}
+
+function cleanEditorListArtifacts(html) {
+  const value = String(html || "").trim();
+  if (!value) {
+    return value;
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<body>${value}</body>`, "text/html");
+  const meaningfulSelector = [
+    "input",
+    "select",
+    "textarea",
+    "button",
+    "a[href]",
+    "img",
+    "svg",
+    "canvas",
+    "video",
+    "audio",
+    "iframe",
+    "progress",
+    "meter",
+    "details",
+    "table",
+    "[data-lucide]"
+  ].join(", ");
+
+  const isPlaceholderListItem = (node) => {
+    if (!node || node.tagName?.toLowerCase() !== "li") {
+      return false;
+    }
+
+    if (node.querySelector(meaningfulSelector)) {
+      return false;
+    }
+
+    const normalizedHtml = node.innerHTML
+      .replace(/<br\s*\/?>/gi, "")
+      .replace(/&nbsp;/gi, "")
+      .trim();
+
+    return !normalizedHtml && !node.textContent.trim();
+  };
+
+  const cleanupList = (list) => {
+    [...list.children].forEach((child) => {
+      if (child.tagName?.toLowerCase() === "li" && isPlaceholderListItem(child)) {
+        child.remove();
+      }
+    });
+
+    const hasMeaningfulListItems = [...list.children].some((child) => child.tagName?.toLowerCase() === "li");
+    if (hasMeaningfulListItems) {
+      return;
+    }
+
+    const directMeaningfulChild = [...list.children].some((child) => {
+      if (child.tagName?.toLowerCase() === "template") {
+        return true;
+      }
+
+      if (child.tagName?.toLowerCase() === "li") {
+        return !isPlaceholderListItem(child);
+      }
+
+      return true;
+    });
+
+    const hasMeaningfulText = [...list.childNodes].some((child) => {
+      return child.nodeType === Node.TEXT_NODE && child.textContent.trim();
+    });
+
+    if (!directMeaningfulChild && !hasMeaningfulText) {
+      list.remove();
+    }
+  };
+
+  const elementMatchesTemplateBlueprint = (node, blueprint) => {
+    if (!node || node.nodeType !== Node.ELEMENT_NODE || !blueprint || blueprint.nodeType !== Node.ELEMENT_NODE) {
+      return false;
+    }
+
+    if (node.tagName !== blueprint.tagName) {
+      return false;
+    }
+
+    const blueprintClasses = [...blueprint.classList];
+    if (blueprintClasses.length && !blueprintClasses.every((token) => node.classList.contains(token))) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const cleanupTemplateArtifacts = (root = doc.body) => {
+    root.querySelectorAll("template[x-for], template[x-if]").forEach((template) => {
+      const blueprint = template.content.firstElementChild;
+      if (!blueprint) {
+        return;
+      }
+
+      let sibling = template.nextSibling;
+      while (sibling) {
+        const nextSibling = sibling.nextSibling;
+
+        if (sibling.nodeType === Node.TEXT_NODE && !sibling.textContent.trim()) {
+          sibling = nextSibling;
+          continue;
+        }
+
+        if (!elementMatchesTemplateBlueprint(sibling, blueprint)) {
+          break;
+        }
+
+        sibling.remove();
+        if (template.hasAttribute("x-if")) {
+          break;
+        }
+        sibling = nextSibling;
+      }
+    });
+  };
+
+  cleanupTemplateArtifacts(doc.body);
+  doc.body.querySelectorAll("ul, ol").forEach(cleanupList);
+  return doc.body.innerHTML.trim();
 }
 
 function buildRootThemeAttributes(themeId, schemeId, customColor = DEFAULT_CUSTOM_COLOR) {
@@ -3181,7 +3456,7 @@ function createStudioApp() {
       }
 
       if (data.type === "llastro-editor-change" && typeof data.html === "string") {
-        this.normalizedAppHtml = data.html.trim();
+        this.normalizedAppHtml = cleanEditorListArtifacts(data.html);
         this.rawResponse = this.normalizedAppHtml;
         const meta = extractAppMetadata(
           this.normalizedAppHtml,
