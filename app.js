@@ -2815,6 +2815,12 @@ function createStudioApp() {
     skipStudioResetOnNextEntry: false,
     pendingSharedImport: null,
     activeSharedImportToken: "",
+    currentShareLink: "",
+    currentShareLinkSource: "",
+    currentShareLinkRefreshToken: 0,
+    activeLibraryShareLink: "",
+    activeLibraryShareLinkSource: "",
+    activeLibraryShareLinkRefreshToken: 0,
     currentEditingId: "",
     currentEditingSourceTitle: "",
     editorEnabled: false,
@@ -3628,6 +3634,7 @@ function createStudioApp() {
       this.renderPreview(
         this.buildPreviewDocument(appHtml, this.draftTitle, { editorEnabled: this.editorEnabled })
       );
+      void this.refreshCurrentShareLink();
     },
 
     toggleEditorMode() {
@@ -4333,6 +4340,8 @@ function createStudioApp() {
       if (modalFrame) {
         modalFrame.srcdoc = documentHtml;
       }
+
+      void this.refreshActiveLibraryShareLink();
     },
 
     getStandaloneDocument() {
@@ -4385,6 +4394,74 @@ function createStudioApp() {
       return `${getShareBaseUrl()}${SHARED_IMPORT_ROUTE}/${token}`;
     },
 
+    async refreshCurrentShareLink() {
+      const spec = this.buildCurrentShareSpec();
+      const source = spec || "";
+      const refreshToken = ++this.currentShareLinkRefreshToken;
+
+      if (!source) {
+        this.currentShareLink = "";
+        this.currentShareLinkSource = "";
+        return;
+      }
+
+      if (this.currentShareLink && this.currentShareLinkSource === source) {
+        return;
+      }
+
+      try {
+        const link = await this.createShareLink(spec);
+        if (refreshToken !== this.currentShareLinkRefreshToken) {
+          return;
+        }
+
+        this.currentShareLink = link;
+        this.currentShareLinkSource = source;
+      } catch (error) {
+        console.error(error);
+        if (refreshToken !== this.currentShareLinkRefreshToken) {
+          return;
+        }
+
+        this.currentShareLink = "";
+        this.currentShareLinkSource = "";
+      }
+    },
+
+    async refreshActiveLibraryShareLink() {
+      const app = this.activeLibraryApp;
+      const source = app?.html?.trim() || "";
+      const refreshToken = ++this.activeLibraryShareLinkRefreshToken;
+
+      if (!source) {
+        this.activeLibraryShareLink = "";
+        this.activeLibraryShareLinkSource = "";
+        return;
+      }
+
+      if (this.activeLibraryShareLink && this.activeLibraryShareLinkSource === source) {
+        return;
+      }
+
+      try {
+        const link = await this.createShareLink(source);
+        if (refreshToken !== this.activeLibraryShareLinkRefreshToken) {
+          return;
+        }
+
+        this.activeLibraryShareLink = link;
+        this.activeLibraryShareLinkSource = source;
+      } catch (error) {
+        console.error(error);
+        if (refreshToken !== this.activeLibraryShareLinkRefreshToken) {
+          return;
+        }
+
+        this.activeLibraryShareLink = "";
+        this.activeLibraryShareLinkSource = "";
+      }
+    },
+
     async copyPrompt() {
       await this.copyText(this.promptText, "Prompt copied.");
     },
@@ -4394,19 +4471,18 @@ function createStudioApp() {
     },
 
     async copyShareLink() {
-      const spec = this.buildCurrentShareSpec();
-      if (!spec) {
+      if (!this.buildCurrentShareSpec()) {
         this.statusMessage = "Import a generated tool before sharing.";
         return;
       }
 
-      try {
-        const link = await this.createShareLink(spec);
-        await this.copyText(link, "Share link copied.");
-      } catch (error) {
-        console.error(error);
-        this.statusMessage = "Share link could not be created in this browser.";
+      if (!this.currentShareLink) {
+        void this.refreshCurrentShareLink();
+        this.statusMessage = "Preparing share link. Tap again in a moment.";
+        return;
       }
+
+      await this.copyText(this.currentShareLink, "Share link copied.");
     },
 
     async copyLibraryShareLink(appId) {
@@ -4415,13 +4491,13 @@ function createStudioApp() {
         return;
       }
 
-      try {
-        const link = await this.createShareLink(this.buildSharedSpecFromEntry(app));
-        await this.copyText(link, `Share link for "${app.title}" copied.`);
-      } catch (error) {
-        console.error(error);
-        this.statusMessage = "Share link could not be created in this browser.";
+      if (this.activeLibraryId === appId && this.activeLibraryShareLink) {
+        await this.copyText(this.activeLibraryShareLink, `Share link for "${app.title}" copied.`);
+        return;
       }
+
+      void this.refreshActiveLibraryShareLink();
+      this.statusMessage = `Preparing share link for "${app.title}". Tap again in a moment.`;
     },
 
     confirmSharedImport() {
