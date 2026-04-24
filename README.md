@@ -4,6 +4,8 @@ Chat2Tool is a local studio for turning conversations, notes, and rough thinking
 
 It is designed as an active alternative to notebook-first workflows in Joplin, Obsidian, or plain markdown. Instead of saving a note that you have to reread and mentally reassemble later, Chat2Tool helps you save the workflow itself: a focused one-page Alpine.js tool that can be reopened, edited, searched, exported, and used again.
 
+Live client-side build: https://aiyoyosoftware.github.io/Chat2Tool
+
 ## Alpha Status
 
 This is a `0.1` alpha release. The core local workflow works, but the project is still early. Expect rough edges around generated output quality, browser quirks, and editing affordances.
@@ -76,6 +78,15 @@ The studio now autodetects library storage:
 
 - If `/api/library` is available, saved tools use the server-backed library and mirror to browser storage as a backup.
 - If `/api/library` is unavailable, saved tools fall back to browser-only `localStorage`, so the app still works on static hosting without a writable server volume.
+
+That means Chat2Tool can now run in two useful modes:
+
+- Server-backed mode for local development or self-hosting with `server.js` and filesystem persistence.
+- Client-side mode on static hosts such as GitHub Pages, where the app runs fully in the browser and saves the tool library to that browser's `localStorage`.
+
+The public GitHub Pages deployment uses the client-side mode:
+
+- https://aiyoyosoftware.github.io/Chat2Tool
 
 Requires Node.js 20 or newer.
 
