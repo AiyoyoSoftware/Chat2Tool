@@ -7,6 +7,7 @@ const LIBRARY_API_PATH = "/api/library";
 const LIBRARY_STORAGE_AUTO = "auto";
 const LIBRARY_STORAGE_API = "api";
 const LIBRARY_STORAGE_LOCAL = "local";
+const ASSET_STAMP = typeof window !== "undefined" ? String(window.__LLASTRO_ASSET_STAMP || "") : "";
 const ALPINE_RUNTIME_PATH = "./vendor/alpinejs.min.js";
 const LUCIDE_RUNTIME_PATH = "./vendor/lucide.min.js";
 const THEMES = [
@@ -2768,7 +2769,7 @@ function createStudioApp() {
 
     async loadFrameworkCss() {
       try {
-        const response = await fetch("./framework.css", { cache: "no-store" });
+        const response = await fetch(this.withAssetStamp("./framework.css"), { cache: "no-store" });
         if (!response.ok) {
           throw new Error(`framework.css responded with ${response.status}`);
         }
@@ -2784,7 +2785,7 @@ function createStudioApp() {
 
     async loadAlpineRuntime() {
       try {
-        const response = await fetch(ALPINE_RUNTIME_PATH, { cache: "no-store" });
+        const response = await fetch(this.withAssetStamp(ALPINE_RUNTIME_PATH), { cache: "no-store" });
         if (!response.ok) {
           throw new Error(`alpine runtime responded with ${response.status}`);
         }
@@ -2800,7 +2801,7 @@ function createStudioApp() {
 
     async loadLucideRuntime() {
       try {
-        const response = await fetch(LUCIDE_RUNTIME_PATH, { cache: "no-store" });
+        const response = await fetch(this.withAssetStamp(LUCIDE_RUNTIME_PATH), { cache: "no-store" });
         if (!response.ok) {
           throw new Error(`lucide runtime responded with ${response.status}`);
         }
@@ -3305,6 +3306,15 @@ function createStudioApp() {
     shouldForceLocalLibraryStorage() {
       const hostname = window.location.hostname.toLowerCase();
       return window.location.protocol === "file:" || hostname.endsWith(".github.io");
+    },
+
+    withAssetStamp(path) {
+      if (!ASSET_STAMP) {
+        return path;
+      }
+
+      const separator = path.includes("?") ? "&" : "?";
+      return `${path}${separator}v=${encodeURIComponent(ASSET_STAMP)}`;
     },
 
     writeLocalLibrary(nextLibrary = this.library) {
