@@ -3,9 +3,6 @@
   "name": "Chat2Tool",
   "version": "__APP_VERSION__",
   "description": "Turn conversations and notes into reusable Alpine.js tools from a Firefox toolbar popup.",
-  "permissions": [
-    "storage"
-  ],
   "icons": {
     "16": "extension/firefox/icons/toolbar.svg",
     "32": "extension/firefox/icons/toolbar.svg",

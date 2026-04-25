@@ -13,6 +13,7 @@ const LIBRARY_STORAGE_AUTO = "auto";
 const LIBRARY_STORAGE_API = "api";
 const LIBRARY_STORAGE_LOCAL = "local";
 const SHARED_IMPORT_ROUTE = "/i";
+const STUDIO_HANDOFF_PARAM = "llastro-handoff";
 const SHARED_IMPORT_REDIRECT_PARAM = "llastro-route";
 const SHARE_COMPRESSION_FORMAT = "deflate";
 const ASSET_STAMP = typeof window !== "undefined" ? String(window.__LLASTRO_ASSET_STAMP || "") : "";
@@ -3779,13 +3780,10 @@ function createStudioApp() {
       return baseUrl.toString();
     },
 
-    async consumePendingExtensionDraft() {
-      const draft = await this.getExtensionStorageValue(EXTENSION_DRAFT_KEY);
+    applyIncomingStudioDraft(draft, sourceLabel = "Handoff") {
       if (!draft || typeof draft !== "object") {
         return false;
       }
-
-      await this.removeExtensionStorageValue(EXTENSION_DRAFT_KEY);
 
       const nextBrief = typeof draft.appBrief === "string" ? draft.appBrief.trim() : "";
       const nextResponse = typeof draft.rawResponse === "string" ? draft.rawResponse.trim() : "";
@@ -3829,17 +3827,56 @@ function createStudioApp() {
       if (nextResponse) {
         this.importResponse(true);
         this.currentStudioStep = "preview";
-        this.statusMessage = "Extension handoff loaded into the studio.";
+        this.statusMessage = `${sourceLabel} loaded into the studio.`;
       } else if (nextStep && this.studioSteps.some((step) => step.id === nextStep)) {
         this.currentStudioStep = nextStep;
-        this.statusMessage = "Extension draft loaded into the studio.";
+        this.statusMessage = `${sourceLabel} loaded into the studio.`;
       } else if (nextBrief) {
         this.currentStudioStep = "handoff";
-        this.statusMessage = "Extension draft loaded into the studio.";
+        this.statusMessage = `${sourceLabel} loaded into the studio.`;
       }
 
       this.saveState();
       return true;
+    },
+
+    async consumePendingExtensionDraft() {
+      const draft = await this.getExtensionStorageValue(EXTENSION_DRAFT_KEY);
+      if (!draft || typeof draft !== "object") {
+        return false;
+      }
+
+      await this.removeExtensionStorageValue(EXTENSION_DRAFT_KEY);
+      return this.applyIncomingStudioDraft(draft, "Extension handoff");
+    },
+
+    async consumeIncomingHandoffFromLocation() {
+      const nextUrl = new URL(window.location.href);
+      const token = nextUrl.searchParams.get(STUDIO_HANDOFF_PARAM);
+      if (!token) {
+        return false;
+      }
+
+      nextUrl.pathname = getCanonicalAppPath(nextUrl.pathname);
+      nextUrl.searchParams.delete(STUDIO_HANDOFF_PARAM);
+
+      try {
+        const rawDraft = await decompressBase64UrlToText(token);
+        const draft = JSON.parse(rawDraft);
+        const applied = this.applyIncomingStudioDraft(draft, "Popup handoff");
+        window.history.replaceState(null, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+
+        if (!applied) {
+          this.statusMessage = "Popup handoff did not include any studio data.";
+        }
+
+        return applied;
+      } catch (error) {
+        console.error(error);
+        window.history.replaceState(null, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+        this.statusMessage = "Popup handoff could not be opened.";
+        return false;
+      }
     },
 
     async boot() {
@@ -3852,6 +3889,7 @@ function createStudioApp() {
         this.editorEnabled = false;
       }
       await this.consumePendingExtensionDraft();
+      await this.consumeIncomingHandoffFromLocation();
       this.applyAppTheme();
       window.addEventListener("message", (event) => this.handlePreviewEditorMessage(event));
       window.addEventListener("hashchange", () => void this.handleLocationChange());
@@ -4142,6 +4180,7 @@ function createStudioApp() {
 
     async handleLocationChange() {
       this.rewriteHostedImportRedirect();
+      await this.consumeIncomingHandoffFromLocation();
       await this.loadPendingSharedImportFromLocation();
       this.syncRouteFromLocation();
     },

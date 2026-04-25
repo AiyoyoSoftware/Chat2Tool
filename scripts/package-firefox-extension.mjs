@@ -7,26 +7,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const distRoot = path.join(projectRoot, "dist", "firefox-extension");
 const extensionRoot = path.join(projectRoot, "extension", "firefox");
-const sourcePaths = [
-  "index.html",
-  "bootstrap-assets.js",
-  "preview-host.html",
-  "preview-host.css",
-  "preview-host.js",
-  "app.js",
-  "styles.css",
-  "framework.css",
-  "404.html",
-  "vendor",
-];
-
-async function copyProjectFiles() {
-  for (const sourcePath of sourcePaths) {
-    const from = path.join(projectRoot, sourcePath);
-    const to = path.join(distRoot, sourcePath);
-    await cp(from, to, { recursive: true });
-  }
-}
 
 async function writeManifest(version) {
   const manifestTemplate = await readFile(path.join(extensionRoot, "manifest.template.json"), "utf8");
@@ -67,7 +47,6 @@ async function main() {
 
   await rm(distRoot, { recursive: true, force: true });
   await mkdir(distRoot, { recursive: true });
-  await copyProjectFiles();
   await copyExtensionAssets();
   await writeManifest(version);
 

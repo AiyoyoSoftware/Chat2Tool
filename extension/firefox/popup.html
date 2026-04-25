@@ -11,7 +11,7 @@
       <header class="hero">
         <p class="eyebrow">Firefox Extension</p>
         <h1>Chat2Tool</h1>
-        <p class="lede">Stage notes or generated HTML here, then jump straight into the studio.</p>
+        <p class="lede">Use the popup as a quick handoff into the hosted studio on GitHub Pages.</p>
       </header>
 
       <section class="panel actions-panel">
@@ -32,12 +32,12 @@
         <form id="handoff-form" class="stack">
           <section class="prompt-copy-card" aria-live="polite">
             <div>
-              <p class="mini-label" id="prompt-label">Extension-safe prompt from the wizard</p>
-              <h3>Copy the current wizard prompt</h3>
-              <p class="prompt-copy-card__copy" id="prompt-hint">Open the studio once to prepare the current extension-safe prompt for this popup.</p>
+              <p class="mini-label" id="prompt-label">Prompt lives in the hosted studio</p>
+              <h3>Open the prompt step on GitHub Pages</h3>
+              <p class="prompt-copy-card__copy" id="prompt-hint">Open the GitHub Pages studio on the handoff step to copy or tune the current prompt there.</p>
             </div>
 
-            <button type="button" class="button button-primary" id="copy-prompt">Copy Prompt</button>
+            <button type="button" class="button button-primary" id="copy-prompt">Open Prompt</button>
           </section>
 
           <label class="field">
@@ -50,21 +50,10 @@
           </label>
 
           <div class="button-row">
-            <button type="submit" class="button button-primary">Open In Wizard</button>
+            <button type="submit" class="button button-primary">Open In Hosted Studio</button>
             <button type="button" class="button button-ghost" id="clear-handoff">Clear</button>
           </div>
         </form>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <div>
-            <p class="mini-label">Library</p>
-            <h2>Recent tools</h2>
-          </div>
-        </div>
-
-        <div id="recent-tools" class="recent-tools"></div>
       </section>
 
       <footer class="status-bar">
