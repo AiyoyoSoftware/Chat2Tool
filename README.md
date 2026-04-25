@@ -51,7 +51,15 @@ Generated tools are intentionally constrained so they remain portable, safe to p
 
 Generated tools are HTML and Alpine.js produced by an LLM. Chat2Tool strips external scripts, custom CSS, and external stylesheets, then previews saved tools in sandboxed iframes. These guardrails are intended for local experimentation and are not a guarantee that hostile generated code is safe.
 
-Only import generated HTML you are comfortable running locally. Do not expose the bundled server on untrusted networks; the alpha release has no authentication.
+Use Chat2Tool as a local, single-user studio:
+
+- Only import generated HTML you trust and are comfortable running locally.
+- Treat shared imports as untrusted until you review them. A tool can still contain inline scripts and unexpected behavior even after Chat2Tool removes external assets.
+- Use the sandboxed preview to inspect a tool before saving it.
+- Be more careful with exported standalone HTML files. Once opened outside Chat2Tool, they no longer benefit from the studio iframe sandbox.
+- Do not expose the bundled server on untrusted networks or the public internet. The alpha `/api/library` endpoint has no authentication and is meant for local/self-managed use only.
+
+If you want browser-only isolation, prefer the static GitHub Pages deployment or another static host, where the library stays in that browser's `localStorage` instead of a writable server API.
 
 ## Theme System
 
@@ -111,6 +119,8 @@ docker compose up --build
 Then open `http://localhost:9944`.
 
 Saved tools are stored in `/data/library.json` inside the container and persisted through the named Docker volume `chat2tool-data`.
+
+The provided Docker setup publishes port `9944` on all interfaces. Keep it behind a trusted local network, reverse proxy, or SSH tunnel unless you add your own authentication and access controls.
 
 ## Generated Tool Shape
 
