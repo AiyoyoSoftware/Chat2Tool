@@ -16,6 +16,15 @@ const SHARE_COMPRESSION_FORMAT = "deflate";
 const ASSET_STAMP = typeof window !== "undefined" ? String(window.__LLASTRO_ASSET_STAMP || "") : "";
 const ALPINE_RUNTIME_PATH = "./vendor/alpinejs.min.js";
 const LUCIDE_RUNTIME_PATH = "./vendor/lucide.min.js";
+const DEFAULT_DROPBOX_APP_KEY = "9l31khas4nnxofu";
+const DROPBOX_AUTHORIZE_URL = "https://www.dropbox.com/oauth2/authorize";
+const DROPBOX_TOKEN_URL = "https://api.dropbox.com/oauth2/token";
+const DROPBOX_CONTENT_API_BASE = "https://content.dropboxapi.com/2";
+const DROPBOX_SCOPES = ["files.content.read", "files.content.write"];
+const DROPBOX_BACKUP_PATH = "/chat2tool-library-backup.json";
+const DROPBOX_SESSION_KEY = "llastro-dropbox-session-v1";
+const DROPBOX_PKCE_KEY = "llastro-dropbox-pkce-v1";
+const OFFICIAL_HOSTED_APP_URL = "https://aiyoyosoftware.github.io/Chat2Tool/";
 const THEMES = [
   {
     id: "flat",
@@ -702,6 +711,137 @@ function getShareBaseUrl(pathname = window.location.pathname) {
     .replace(/\/$/, "");
 
   return `${window.location.origin}${canonicalPath}`;
+}
+
+function getCanonicalAppUrl(pathname = window.location.pathname) {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const canonicalPath = `${getCanonicalAppPath(pathname).replace(/\/index\.html$/, "").replace(/\/$/, "")}/`;
+  return `${window.location.origin}${canonicalPath}`;
+}
+
+function isOfficialHostedDeployment(url = window.location.href) {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    return getCanonicalAppUrl(new URL(url, window.location.href).pathname) === OFFICIAL_HOSTED_APP_URL;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+}
+
+function sessionStorageAvailable() {
+  if (typeof window === "undefined" || !window.sessionStorage) {
+    return false;
+  }
+
+  try {
+    const key = "__llastro_session_test__";
+    window.sessionStorage.setItem(key, "1");
+    window.sessionStorage.removeItem(key);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function readSessionJson(key) {
+  if (!sessionStorageAvailable()) {
+    return null;
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+function writeSessionJson(key, value) {
+  if (!sessionStorageAvailable()) {
+    return false;
+  }
+
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+}
+
+function removeSessionValue(key) {
+  if (!sessionStorageAvailable()) {
+    return;
+  }
+
+  try {
+    window.sessionStorage.removeItem(key);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function createRandomToken(byteLength = 32) {
+  if (!window.crypto?.getRandomValues) {
+    throw new Error("Secure random generation is unavailable in this browser.");
+  }
+
+  const bytes = new Uint8Array(byteLength);
+  window.crypto.getRandomValues(bytes);
+  return bytesToBase64Url(bytes);
+}
+
+async function sha256Base64Url(value) {
+  if (!window.crypto?.subtle) {
+    throw new Error("Secure hashing is unavailable in this browser.");
+  }
+
+  const encoded = new TextEncoder().encode(String(value || ""));
+  const digest = await window.crypto.subtle.digest("SHA-256", encoded);
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
+async function readJsonOrText(response) {
+  const raw = await response.text();
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return raw;
+  }
+}
+
+function summarizeDropboxError(payload, fallback = "Dropbox request failed.") {
+  if (!payload) {
+    return fallback;
+  }
+
+  if (typeof payload === "string") {
+    return payload;
+  }
+
+  const candidates = [
+    payload.error_description,
+    payload.error_summary,
+    payload.error?.error_summary,
+    payload.error?.reason?.[".tag"],
+    payload.error?.[".tag"]
+  ];
+
+  const message = candidates.find((candidate) => typeof candidate === "string" && candidate.trim());
+  return message ? message.replace(/_/g, " ") : fallback;
 }
 
 function getSharedImportTokenFromPath(pathname = window.location.pathname) {
@@ -2827,6 +2967,14 @@ function createStudioApp() {
     editorSelection: null,
     editorTextDraft: "",
     editorTextTimer: 0,
+    dropboxAppKey: "",
+    dropboxSessionAppKey: "",
+    dropboxRefreshToken: "",
+    dropboxAccessToken: "",
+    dropboxAccessTokenExpiresAt: 0,
+    dropboxLastBackupAt: "",
+    dropboxLastRestoreAt: "",
+    dropboxAction: "",
     themeScrollTimer: 0,
     statusMessage: "Loading framework and icon runtime...",
 
@@ -3027,6 +3175,70 @@ function createStudioApp() {
       }
 
       return "Paste a tool first";
+    },
+
+    get dropboxRedirectUri() {
+      return isOfficialHostedDeployment() ? OFFICIAL_HOSTED_APP_URL : getCanonicalAppUrl();
+    },
+
+    get dropboxBackupPath() {
+      return DROPBOX_BACKUP_PATH;
+    },
+
+    get dropboxDefaultAppKey() {
+      return isOfficialHostedDeployment() ? DEFAULT_DROPBOX_APP_KEY : "";
+    },
+
+    get effectiveDropboxAppKey() {
+      return this.dropboxAppKey.trim() || this.dropboxDefaultAppKey;
+    },
+
+    get dropboxHasAppKey() {
+      return Boolean(this.effectiveDropboxAppKey);
+    },
+
+    get dropboxUsesBuiltInKey() {
+      return Boolean(!this.dropboxAppKey.trim() && this.dropboxDefaultAppKey);
+    },
+
+    get isDropboxConnected() {
+      return Boolean(this.dropboxRefreshToken && this.dropboxSessionAppKey);
+    },
+
+    get dropboxIsBusy() {
+      return Boolean(this.dropboxAction);
+    },
+
+    get dropboxConnectionLabel() {
+      if (this.dropboxAction === "connect") {
+        return "Connecting";
+      }
+
+      if (this.dropboxAction === "backup") {
+        return "Backing up";
+      }
+
+      if (this.dropboxAction === "restore") {
+        return "Restoring";
+      }
+
+      return this.isDropboxConnected ? "Connected this session" : "Not connected";
+    },
+
+    get dropboxActionSummary() {
+      if (this.dropboxLastBackupAt && this.dropboxLastRestoreAt) {
+        return `Last backup ${this.formatTimestamp(this.dropboxLastBackupAt)}. Last restore ${this.formatTimestamp(this.dropboxLastRestoreAt)}.`;
+      }
+
+      if (this.dropboxLastBackupAt) {
+        return `Last backup ${this.formatTimestamp(this.dropboxLastBackupAt)}.`;
+      }
+
+      if (this.dropboxLastRestoreAt) {
+        return `Last restore ${this.formatTimestamp(this.dropboxLastRestoreAt)}.`;
+      }
+
+      return "Tokens stay in session storage only. Disconnect to clear them immediately.";
     },
 
     get promptText() {
@@ -3543,21 +3755,357 @@ function createStudioApp() {
       }).format(new Date(value));
     },
 
+    handleDropboxAppKeyInput() {
+      this.saveState();
+    },
+
+    persistDropboxSession() {
+      if (!this.isDropboxConnected) {
+        removeSessionValue(DROPBOX_SESSION_KEY);
+        return;
+      }
+
+      writeSessionJson(DROPBOX_SESSION_KEY, {
+        appKey: this.dropboxSessionAppKey,
+        refreshToken: this.dropboxRefreshToken
+      });
+    },
+
+    restoreDropboxSession() {
+      const session = readSessionJson(DROPBOX_SESSION_KEY);
+      if (!session || typeof session.refreshToken !== "string" || !session.refreshToken) {
+        return;
+      }
+
+      this.dropboxRefreshToken = session.refreshToken;
+      this.dropboxSessionAppKey = typeof session.appKey === "string" ? session.appKey : "";
+      if (!this.dropboxAppKey && this.dropboxSessionAppKey) {
+        this.dropboxAppKey = this.dropboxSessionAppKey;
+      }
+    },
+
+    clearDropboxPkceState() {
+      removeSessionValue(DROPBOX_PKCE_KEY);
+    },
+
+    clearDropboxSession() {
+      this.dropboxSessionAppKey = "";
+      this.dropboxRefreshToken = "";
+      this.dropboxAccessToken = "";
+      this.dropboxAccessTokenExpiresAt = 0;
+      this.dropboxAction = "";
+      this.clearDropboxPkceState();
+      removeSessionValue(DROPBOX_SESSION_KEY);
+    },
+
+    cleanupDropboxAuthRedirect(returnHash = "#settings") {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.pathname = getCanonicalAppPath(nextUrl.pathname);
+      nextUrl.searchParams.delete("code");
+      nextUrl.searchParams.delete("state");
+      nextUrl.searchParams.delete("error");
+      nextUrl.searchParams.delete("error_description");
+      nextUrl.hash = returnHash || "#settings";
+      window.history.replaceState(null, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+    },
+
+    async fetchDropboxToken(params) {
+      const response = await fetch(DROPBOX_TOKEN_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams(params).toString()
+      });
+
+      const payload = await readJsonOrText(response);
+      if (!response.ok) {
+        throw new Error(summarizeDropboxError(payload, `Dropbox auth failed with ${response.status}.`));
+      }
+
+      return payload || {};
+    },
+
+    async beginDropboxAuth() {
+      const appKey = this.effectiveDropboxAppKey;
+      if (!appKey) {
+        this.statusMessage = "Add a Dropbox app key before connecting.";
+        return;
+      }
+
+      if (!sessionStorageAvailable()) {
+        this.statusMessage = "Session storage is unavailable, so Dropbox PKCE cannot complete in this browser.";
+        return;
+      }
+
+      this.dropboxAction = "connect";
+
+      try {
+        const verifier = createRandomToken(64);
+        const challenge = await sha256Base64Url(verifier);
+        const state = createRandomToken(24);
+        const returnHash = window.location.hash || "#settings";
+        writeSessionJson(DROPBOX_PKCE_KEY, {
+          verifier,
+          state,
+          appKey,
+          returnHash
+        });
+
+        const authorizeUrl = new URL(DROPBOX_AUTHORIZE_URL);
+        authorizeUrl.searchParams.set("client_id", appKey);
+        authorizeUrl.searchParams.set("response_type", "code");
+        authorizeUrl.searchParams.set("redirect_uri", this.dropboxRedirectUri);
+        authorizeUrl.searchParams.set("token_access_type", "offline");
+        authorizeUrl.searchParams.set("scope", DROPBOX_SCOPES.join(" "));
+        authorizeUrl.searchParams.set("include_granted_scopes", "user");
+        authorizeUrl.searchParams.set("code_challenge", challenge);
+        authorizeUrl.searchParams.set("code_challenge_method", "S256");
+        authorizeUrl.searchParams.set("state", state);
+
+        this.statusMessage = "Redirecting to Dropbox for approval...";
+        window.location.assign(authorizeUrl.toString());
+      } catch (error) {
+        console.error(error);
+        this.dropboxAction = "";
+        this.statusMessage = error instanceof Error ? error.message : "Dropbox connection could not start.";
+      }
+    },
+
+    async handleDropboxOAuthCallback() {
+      const currentUrl = new URL(window.location.href);
+      const code = currentUrl.searchParams.get("code");
+      const returnedState = currentUrl.searchParams.get("state");
+      const oauthError = currentUrl.searchParams.get("error");
+      const oauthErrorDescription = currentUrl.searchParams.get("error_description");
+
+      if (!code && !oauthError) {
+        return false;
+      }
+
+      const pkceState = readSessionJson(DROPBOX_PKCE_KEY) || {};
+      const returnHash = typeof pkceState.returnHash === "string" && pkceState.returnHash
+        ? pkceState.returnHash
+        : "#settings";
+
+      if (oauthError) {
+        this.clearDropboxPkceState();
+        this.cleanupDropboxAuthRedirect(returnHash);
+        this.statusMessage = oauthErrorDescription
+          ? `Dropbox connection was canceled: ${oauthErrorDescription}.`
+          : "Dropbox connection was canceled.";
+        return true;
+      }
+
+      if (!pkceState.verifier || !pkceState.appKey || returnedState !== pkceState.state) {
+        this.clearDropboxPkceState();
+        this.cleanupDropboxAuthRedirect(returnHash);
+        this.statusMessage = "Dropbox sign-in could not be verified. Start the connection again from Settings.";
+        return true;
+      }
+
+      this.dropboxAction = "connect";
+
+      try {
+        const tokenPayload = await this.fetchDropboxToken({
+          code,
+          grant_type: "authorization_code",
+          redirect_uri: this.dropboxRedirectUri,
+          code_verifier: pkceState.verifier,
+          client_id: pkceState.appKey
+        });
+
+        if (typeof tokenPayload.refresh_token !== "string" || !tokenPayload.refresh_token) {
+          throw new Error("Dropbox did not return a refresh token. Make sure offline access is enabled for this app.");
+        }
+
+        this.dropboxSessionAppKey = pkceState.appKey;
+        this.dropboxAppKey = pkceState.appKey;
+        this.dropboxRefreshToken = tokenPayload.refresh_token;
+        this.dropboxAccessToken = typeof tokenPayload.access_token === "string" ? tokenPayload.access_token : "";
+        this.dropboxAccessTokenExpiresAt = Date.now() + (Math.max(Number(tokenPayload.expires_in) || 0, 60) * 1000);
+        this.persistDropboxSession();
+        this.clearDropboxPkceState();
+        this.cleanupDropboxAuthRedirect(returnHash);
+        this.dropboxAction = "";
+        this.statusMessage = "Dropbox connected for this browser session.";
+        return true;
+      } catch (error) {
+        console.error(error);
+        this.clearDropboxSession();
+        this.cleanupDropboxAuthRedirect(returnHash);
+        this.statusMessage = error instanceof Error ? error.message : "Dropbox connection failed.";
+        return true;
+      }
+    },
+
+    async ensureDropboxAccessToken() {
+      if (!this.isDropboxConnected) {
+        throw new Error("Connect Dropbox before using backup or restore.");
+      }
+
+      if (this.dropboxAccessToken && this.dropboxAccessTokenExpiresAt - Date.now() > 60_000) {
+        return this.dropboxAccessToken;
+      }
+
+      const tokenPayload = await this.fetchDropboxToken({
+        grant_type: "refresh_token",
+        refresh_token: this.dropboxRefreshToken,
+        client_id: this.dropboxSessionAppKey || this.effectiveDropboxAppKey
+      });
+
+      if (typeof tokenPayload.access_token !== "string" || !tokenPayload.access_token) {
+        throw new Error("Dropbox did not return a usable access token.");
+      }
+
+      this.dropboxAccessToken = tokenPayload.access_token;
+      this.dropboxAccessTokenExpiresAt = Date.now() + (Math.max(Number(tokenPayload.expires_in) || 0, 60) * 1000);
+      return this.dropboxAccessToken;
+    },
+
+    async backupLibraryToDropbox() {
+      if (this.dropboxIsBusy) {
+        return;
+      }
+
+      this.dropboxAction = "backup";
+
+      try {
+        const accessToken = await this.ensureDropboxAccessToken();
+        const backupPayload = JSON.stringify({
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          library: this.normalizeLibraryPayload(this.library)
+        }, null, 2);
+        const response = await fetch(`${DROPBOX_CONTENT_API_BASE}/files/upload`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/octet-stream",
+            "Dropbox-API-Arg": JSON.stringify({
+              path: DROPBOX_BACKUP_PATH,
+              mode: "overwrite",
+              autorename: false,
+              mute: true,
+              strict_conflict: false
+            })
+          },
+          body: backupPayload
+        });
+
+        const payload = await readJsonOrText(response);
+        if (!response.ok) {
+          throw new Error(summarizeDropboxError(payload, `Dropbox backup failed with ${response.status}.`));
+        }
+
+        this.dropboxLastBackupAt = payload?.server_modified || new Date().toISOString();
+        const toolCount = this.library.length;
+        this.statusMessage = `Dropbox backup saved${toolCount ? ` for ${toolCount} tool${toolCount === 1 ? "" : "s"}` : ""}.`;
+      } catch (error) {
+        console.error(error);
+        this.statusMessage = error instanceof Error ? error.message : "Dropbox backup failed.";
+      } finally {
+        this.dropboxAction = "";
+      }
+    },
+
+    async restoreLibraryFromDropbox() {
+      if (this.dropboxIsBusy) {
+        return;
+      }
+
+      this.dropboxAction = "restore";
+
+      try {
+        const accessToken = await this.ensureDropboxAccessToken();
+        const response = await fetch(`${DROPBOX_CONTENT_API_BASE}/files/download`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Dropbox-API-Arg": JSON.stringify({
+              path: DROPBOX_BACKUP_PATH
+            })
+          }
+        });
+
+        const metadataHeader = response.headers.get("Dropbox-API-Result");
+        const metadata = metadataHeader ? JSON.parse(metadataHeader) : null;
+        const rawBody = await response.text();
+
+        if (!response.ok) {
+          let errorPayload = null;
+          if (rawBody) {
+            try {
+              errorPayload = JSON.parse(rawBody);
+            } catch (error) {
+              errorPayload = rawBody;
+            }
+          }
+          if (metadata?.error?.path?.[".tag"] === "not_found" || errorPayload?.error?.path?.[".tag"] === "not_found") {
+            throw new Error("No Dropbox backup file was found yet.");
+          }
+          throw new Error(summarizeDropboxError(errorPayload || metadata, `Dropbox restore failed with ${response.status}.`));
+        }
+
+        const parsed = rawBody ? JSON.parse(rawBody) : null;
+        const rawLibrary = Array.isArray(parsed) ? parsed : parsed?.library;
+        if (!Array.isArray(rawLibrary)) {
+          throw new Error("Dropbox backup file is valid JSON, but it does not contain a library.");
+        }
+
+        const nextLibrary = this.normalizeLibraryPayload(rawLibrary);
+        const toolCount = nextLibrary.length;
+        const restoreLabel = metadata?.server_modified ? ` from ${this.formatTimestamp(metadata.server_modified)}` : "";
+        const confirmed = window.confirm(`Restore ${toolCount} saved tool${toolCount === 1 ? "" : "s"}${restoreLabel} and replace the current library?`);
+        if (!confirmed) {
+          this.statusMessage = "Dropbox restore canceled.";
+          return;
+        }
+
+        await this.saveLibrary(nextLibrary);
+        this.activeLibraryId = sortLibraryEntries(nextLibrary)[0]?.id || "";
+        this.dropboxLastRestoreAt = metadata?.server_modified || new Date().toISOString();
+        this.currentEditingId = "";
+        this.currentEditingSourceTitle = "";
+        this.saveState();
+
+        if (this.currentView === "library") {
+          this.goToLibrary(this.activeLibraryId);
+        } else {
+          this.renderActiveLibraryPreview();
+        }
+
+        this.statusMessage = `Restored ${toolCount} saved tool${toolCount === 1 ? "" : "s"} from Dropbox.`;
+      } catch (error) {
+        console.error(error);
+        this.statusMessage = error instanceof Error ? error.message : "Dropbox restore failed.";
+      } finally {
+        this.dropboxAction = "";
+      }
+    },
+
+    disconnectDropbox() {
+      this.clearDropboxSession();
+      this.statusMessage = "Dropbox disconnected.";
+    },
+
     async boot() {
       await this.loadFrameworkCss();
       await this.loadAlpineRuntime();
       await this.loadLucideRuntime();
       await this.loadLibrary();
       this.restoreState();
+      this.restoreDropboxSession();
       this.applyAppTheme();
       window.addEventListener("message", (event) => this.handlePreviewEditorMessage(event));
       window.addEventListener("hashchange", () => void this.handleLocationChange());
       window.addEventListener("popstate", () => void this.handleLocationChange());
+      const handledDropboxCallback = await this.handleDropboxOAuthCallback();
 
       const hasIncomingSharedImport = await this.loadPendingSharedImportFromLocation();
 
       if (!this.rawResponse.trim()) {
-        if (!hasIncomingSharedImport) {
+        if (!hasIncomingSharedImport && !handledDropboxCallback) {
           this.loadExample(true);
         }
       } else {
@@ -4913,6 +5461,7 @@ function createStudioApp() {
         librarySearch: this.librarySearch,
         activeTagFilters: this.activeTagFilters,
         editorEnabled: this.editorEnabled,
+        dropboxAppKey: this.dropboxAppKey,
       };
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -4981,6 +5530,9 @@ function createStudioApp() {
         }
         if (typeof payload.editorEnabled === "boolean") {
           this.editorEnabled = payload.editorEnabled;
+        }
+        if (typeof payload.dropboxAppKey === "string") {
+          this.dropboxAppKey = payload.dropboxAppKey;
         }
       } catch (error) {
         console.error(error);

@@ -661,7 +661,7 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">Settings</p>
-              <h2>Studio theme</h2>
+              <h2>Studio settings</h2>
             </div>
             <span class="status-pill" x-text="`${currentAppTheme.name} · ${currentAppScheme.name}`"></span>
           </div>
@@ -732,6 +732,137 @@
             <div class="settings-preview__surface">
               <span class="status-pill" x-text="currentAppTheme.label"></span>
               <span class="status-pill" x-text="currentAppScheme.name"></span>
+            </div>
+          </section>
+
+          <section class="custom-color-panel settings-backup-panel">
+            <div class="custom-color-panel__head">
+              <div>
+                <p class="mini-label">Dropbox backup</p>
+                <h3>Back up or restore your tool library</h3>
+                <p class="muted-copy">Connect Dropbox with PKCE, keep tokens out of local storage, and sync one backup file in your app folder.</p>
+              </div>
+              <span class="status-pill" x-text="dropboxConnectionLabel"></span>
+            </div>
+
+            <div class="issue issue-info">
+              <strong>Setup</strong>
+              <span>Use a Dropbox app with App Folder access, enable the `files.content.read` and `files.content.write` scopes, and register the redirect URI shown below in the Dropbox App Console.</span>
+            </div>
+
+            <label class="field">
+              <span x-text="dropboxUsesBuiltInKey ? 'Dropbox app key override' : 'Dropbox app key'"></span>
+              <input
+                type="text"
+                x-model="dropboxAppKey"
+                @input="handleDropboxAppKeyInput()"
+                :placeholder="dropboxUsesBuiltInKey ? 'Using the built-in key for the official hosted deployment' : 'Paste your Dropbox app key'"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+              >
+            </label>
+
+            <p class="muted-copy" x-show="dropboxUsesBuiltInKey" x-cloak>The official GitHub Pages deployment uses the built-in Dropbox app key by default. Enter a different key here only if you want to override it.</p>
+
+            <label class="field">
+              <span>Redirect URI</span>
+              <input
+                type="text"
+                :value="dropboxRedirectUri"
+                readonly
+                spellcheck="false"
+              >
+            </label>
+
+            <div class="button-row">
+              <button
+                type="button"
+                class="button button-primary"
+                :disabled="!dropboxHasAppKey || dropboxIsBusy"
+                @click="beginDropboxAuth()"
+                x-text="isDropboxConnected ? 'Reconnect Dropbox' : 'Connect Dropbox'"
+              ></button>
+              <button
+                type="button"
+                class="button button-secondary"
+                x-show="isDropboxConnected"
+                x-cloak
+                :disabled="dropboxIsBusy"
+                @click="disconnectDropbox()"
+              >
+                Disconnect
+              </button>
+            </div>
+
+            <div class="button-row">
+              <button
+                type="button"
+                class="button button-primary"
+                :disabled="!isDropboxConnected || dropboxIsBusy"
+                @click="backupLibraryToDropbox()"
+              >
+                Back Up Library
+              </button>
+              <button
+                type="button"
+                class="button button-secondary"
+                :disabled="!isDropboxConnected || dropboxIsBusy"
+                @click="restoreLibraryFromDropbox()"
+              >
+                Restore From Backup
+              </button>
+            </div>
+
+            <p class="muted-copy">Dropbox path: <code x-text="dropboxBackupPath"></code></p>
+            <p class="muted-copy" x-text="dropboxActionSummary"></p>
+          </section>
+
+          <section class="custom-color-panel settings-policy-panel stack">
+            <div class="custom-color-panel__head">
+              <div>
+                <p class="mini-label">Privacy Policy</p>
+                <h3>How Chat2Tool handles your data</h3>
+              </div>
+            </div>
+
+            <div class="stack">
+              <div class="stack">
+                <h4>What Chat2Tool is</h4>
+                <p class="muted-copy">Chat2Tool is a client-side application that runs entirely in your browser.</p>
+              </div>
+
+              <div class="stack">
+                <h4>What data is accessed</h4>
+                <p class="muted-copy">If you choose to connect Dropbox for backup and sync, Chat2Tool may access files stored in its Dropbox App Folder or the specific Dropbox scope you authorize.</p>
+                <p class="muted-copy">The application only reads and writes files required for backup, restore, and synchronization of your saved tools and settings.</p>
+              </div>
+
+              <div class="stack">
+                <h4>What data is not collected</h4>
+                <p class="muted-copy">Chat2Tool does not operate its own backend server and does not transmit your files, prompts, or personal data to a developer-controlled server for storage.</p>
+                <p class="muted-copy">The developer does not receive your Dropbox files, access tokens, or application content.</p>
+              </div>
+
+              <div class="stack">
+                <h4>Authentication</h4>
+                <p class="muted-copy">Dropbox authentication is handled through Dropbox's official OAuth flow. Your Dropbox password is never entered into Chat2Tool.</p>
+              </div>
+
+              <div class="stack">
+                <h4>Local storage</h4>
+                <p class="muted-copy">Application data may also be stored locally in your browser using local storage for offline persistence and faster access.</p>
+              </div>
+
+              <div class="stack">
+                <h4>Your control</h4>
+                <p class="muted-copy">You can disconnect Dropbox access at any time from your Dropbox account settings and remove locally stored browser data from your browser settings.</p>
+              </div>
+
+              <div class="stack">
+                <h4>Contact</h4>
+                <p class="muted-copy">For questions about privacy, contact <a href="mailto:admin@aiyoyo.org">admin@aiyoyo.org</a>.</p>
+              </div>
             </div>
           </section>
         </section>

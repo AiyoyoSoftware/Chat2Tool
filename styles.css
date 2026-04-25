@@ -1532,6 +1532,10 @@ textarea[readonly] {
   gap: 0.65rem;
 }
 
+.settings-backup-panel code {
+  word-break: break-all;
+}
+
 .preview-button {
   display: inline-flex;
   min-height: 2.35rem;
