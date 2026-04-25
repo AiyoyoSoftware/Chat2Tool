@@ -102,6 +102,33 @@ Run syntax checks with:
 npm run check
 ```
 
+Build the Firefox extension package with:
+
+```bash
+npm run build:firefox-extension
+```
+
+That command stages a ready-to-load extension in `dist/firefox-extension/`. If the local `zip` command is available, it also writes an `.xpi` archive in `dist/`.
+
+## Firefox Extension
+
+Chat2Tool can also run as a packaged Firefox extension.
+
+- The toolbar button opens a popup for quick handoff.
+- You can paste notes or a tool brief into the popup, optionally paste the generated `html` reply, and jump straight into the studio.
+- The popup can open the full library in a new tab.
+- Recent saved tools appear in the popup with one-click open and copy-link actions.
+- Inside the library, the app can copy an extension deep link for any saved tool.
+
+To load it in Firefox during development:
+
+1. Run `npm run build:firefox-extension`.
+2. Open `about:debugging#/runtime/this-firefox`.
+3. Choose `Load Temporary Add-on...`.
+4. Select `dist/firefox-extension/manifest.json`.
+
+In extension mode, saved tools use Firefox extension storage instead of the local server API.
+
 ## Docker
 
 ```bash
@@ -137,6 +164,8 @@ The host injects:
 - `framework.css`: semantic theme framework for generated tools
 - `app.js`: Alpine studio logic
 - `server.js`: static file host plus the filesystem-backed library API
+- `extension/firefox/`: Firefox popup, manifest template, and toolbar assets
+- `scripts/package-firefox-extension.mjs`: stages the Firefox extension into `dist/`
 - `Dockerfile` and `docker-compose.yml`: self-hosting path
 
 ## License

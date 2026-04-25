@@ -14,7 +14,8 @@
   "scripts": {
     "dev": "PORT=9944 node server.js",
     "serve": "PORT=9944 node server.js",
-    "check": "node --check app.js && node --check server.js"
+    "check": "node --check app.js && node --check server.js && node --check extension/firefox/popup.js && node --check scripts/package-firefox-extension.mjs",
+    "build:firefox-extension": "node scripts/package-firefox-extension.mjs"
   },
   "engines": {
     "node": ">=20"

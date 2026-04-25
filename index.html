@@ -11,33 +11,10 @@
       name="description"
       content="Turn conversations and notes into reusable, theme-constrained Alpine.js tools."
     >
-    <script>
-      (() => {
-        const stamp = Date.now().toString(36);
-        window.__LLASTRO_ASSET_STAMP = stamp;
-        const pathname = window.location.pathname || "/";
-        const appBase = pathname
-          .replace(/\/(?:import|i)(?:\/[^/]+)?\/?$/, "/")
-          .replace(/\/index\.html$/, "/")
-          .replace(/\/$/, "");
-        const assetPath = (path) => `${appBase}${path}`;
-
-        const stylesheet = document.createElement("link");
-        stylesheet.rel = "stylesheet";
-        stylesheet.href = `${assetPath("/styles.css")}?v=${stamp}`;
-        document.head.appendChild(stylesheet);
-
-        ["/app.js", "/vendor/alpinejs.min.js"].forEach((src) => {
-          const script = document.createElement("script");
-          script.src = `${assetPath(src)}?v=${stamp}`;
-          script.async = false;
-          document.head.appendChild(script);
-        });
-      })();
-    </script>
+    <script src="./bootstrap-assets.js"></script>
   </head>
   <body>
-    <div class="shell" x-data="studioApp()" x-init="boot()" @keydown.escape.window="closeLibraryModal()">
+    <div class="shell" x-data="studioApp" x-init="boot()" @keydown.escape.window="closeLibraryModal()">
       <header class="topbar">
         <div>
           <p class="eyebrow">Personal Tool Library</p>
@@ -84,7 +61,7 @@
               <h2>Build a tool in 4 quick steps</h2>
               <p class="muted-copy">Pick the prompt type, choose a theme, copy the prompt, paste the result, then edit.</p>
             </div>
-            <span class="status-pill" x-text="`Step ${currentStudioStepIndex + 1} of ${studioSteps.length}`"></span>
+            <span class="status-pill" x-text="'Step ' + (currentStudioStepIndex + 1) + ' of ' + studioSteps.length"></span>
           </div>
 
           <ol class="wizard-steps">
@@ -160,7 +137,7 @@
               <h2>Pick the look</h2>
               <p class="muted-copy">Choose a theme and color scheme. You can still edit the tool after import.</p>
             </div>
-            <span class="status-pill" x-text="`${currentTheme.name} · ${currentScheme.name}`"></span>
+            <span class="status-pill" x-text="currentTheme.name + ' · ' + currentScheme.name"></span>
           </div>
 
           <div class="theme-grid">
@@ -169,7 +146,7 @@
                 type="button"
                 class="theme-card"
                 :class="{ 'is-active': selectedTheme === theme.id }"
-                :style="`--theme-gradient:${theme.gradient}; --theme-accent:${theme.accent};`"
+                :style="'--theme-gradient:' + theme.gradient + '; --theme-accent:' + theme.accent + ';'"
                 @click="selectTheme(theme.id)"
               >
                 <span class="theme-card__eyebrow" x-text="theme.label"></span>
@@ -186,7 +163,7 @@
           </div>
 
           <div class="scheme-grid">
-            <template x-for="scheme in currentSchemes" :key="`${currentTheme.id}-${scheme.id}`">
+            <template x-for="scheme in currentSchemes" :key="currentTheme.id + '-' + scheme.id">
               <button
                 type="button"
                 class="scheme-card"
@@ -229,16 +206,16 @@
             <div class="theme-preview-panel__head">
               <div>
                 <p class="mini-label">Preview</p>
-                <h3 x-text="`${currentTheme.name} · ${currentScheme.name}`"></h3>
+                <h3 x-text="currentTheme.name + ' · ' + currentScheme.name"></h3>
                 <p class="muted-copy" x-text="currentScheme.summary"></p>
               </div>
               <p class="theme-preview-panel__hint" x-text="currentTheme.semanticHint"></p>
             </div>
 
             <iframe
+              x-ref="themePreviewFrame"
               class="reference-preview theme-preview-frame"
-              :title="`${currentTheme.name} ${currentScheme.name} semantic preview`"
-              :srcdoc="currentStudioStep === 'theme' ? buildReferencePreview(currentTheme.id, currentScheme.id, currentSelectedCustomColor) : ''"
+              title="Theme semantic preview"
               loading="lazy"
               sandbox="allow-scripts allow-forms allow-modals"
             ></iframe>
@@ -259,10 +236,16 @@
           <div class="handoff-grid">
             <section class="handoff-panel">
               <p class="mini-label">Copy</p>
-              <label class="field">
-                <span x-text="promptFieldLabel"></span>
-                <textarea class="wizard-textarea wizard-textarea--handoff" x-bind:value="promptText" rows="12" readonly></textarea>
-              </label>
+              <section class="prompt-copy-card" aria-live="polite">
+                <div>
+                  <p class="mini-label" x-text="promptFieldLabel"></p>
+                  <h3>Copy the wizard prompt</h3>
+                  <p class="muted-copy" x-text="promptFieldHint"></p>
+                </div>
+                <p class="prompt-copy-card__meta">
+                  The copied prompt uses your selected source mode, theme, scheme, and brief from this wizard.
+                </p>
+              </section>
 
               <div class="button-row">
                 <button type="button" class="button button-primary" @click="copyPrompt()">Copy Prompt</button>
@@ -292,7 +275,7 @@
           <div class="issues" x-show="issues.length">
             <p class="mini-label">Import notes</p>
             <template x-for="issue in issues" :key="issue.text">
-              <div class="issue" :class="`issue-${issue.level}`">
+              <div class="issue" :class="'issue-' + issue.level">
                 <strong x-text="issue.level"></strong>
                 <span x-text="issue.text"></span>
               </div>
@@ -428,7 +411,7 @@
                   <button
                     type="button"
                     class="button button-secondary"
-                    :disabled="!editorSelectionMove || !editorSelectionMove.canMoveUp"
+                    :disabled="!canMoveSelectedElementUp"
                     @click="moveSelectedElement('up')"
                   >
                     Move Up
@@ -436,7 +419,7 @@
                   <button
                     type="button"
                     class="button button-secondary"
-                    :disabled="!editorSelectionMove || !editorSelectionMove.canMoveDown"
+                    :disabled="!canMoveSelectedElementDown"
                     @click="moveSelectedElement('down')"
                   >
                     Move Down
@@ -454,7 +437,7 @@
 
         <section class="panel wizard-nav">
           <div class="wizard-nav__copy">
-            <p class="mini-label" x-text="`Step ${currentStudioStepIndex + 1} of ${studioSteps.length}`"></p>
+            <p class="mini-label" x-text="'Step ' + (currentStudioStepIndex + 1) + ' of ' + studioSteps.length"></p>
             <p class="wizard-nav__summary">
               <strong x-text="currentStudioStepMeta.label"></strong>
               <span x-text="currentStudioStepMeta.summary"></span>
@@ -478,7 +461,7 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">Shared Tool</p>
-              <h2 x-text="pendingSharedImport?.app?.title || 'Open shared tool'"></h2>
+              <h2 x-text="pendingSharedImportTitle"></h2>
               <p class="muted-copy">This is a dedicated import page for a shared app link. Review the source before bringing it into your studio.</p>
             </div>
             <span class="status-pill" x-text="pendingSharedImportThemeLabel"></span>
@@ -492,20 +475,20 @@
           <div class="share-import-grid" x-show="pendingSharedImport" x-cloak>
             <article class="share-import-card">
               <p class="mini-label">Exported from</p>
-              <strong x-text="pendingSharedImport?.exportedFrom || 'Unknown studio'"></strong>
+              <strong x-text="pendingSharedImportSource"></strong>
             </article>
             <article class="share-import-card">
               <p class="mini-label">Exported</p>
-              <strong x-text="pendingSharedImport?.exportedAt ? formatTimestamp(pendingSharedImport.exportedAt) : 'Unknown time'"></strong>
+              <strong x-text="pendingSharedImportExportedLabel"></strong>
             </article>
             <article class="share-import-card">
               <p class="mini-label">Summary</p>
-              <strong x-text="pendingSharedImport?.app?.summary || 'No summary included.'"></strong>
+              <strong x-text="pendingSharedImportSummary"></strong>
             </article>
           </div>
 
-          <div class="tag-row" x-show="pendingSharedImport?.app?.tags?.length" x-cloak>
-            <template x-for="tag in pendingSharedImport?.app?.tags || []" :key="`shared-${tag}`">
+          <div class="tag-row" x-show="hasPendingSharedImportTags" x-cloak>
+            <template x-for="tag in pendingSharedImportTags" :key="'shared-' + tag">
               <span class="tag-chip tag-chip--small" x-text="tag"></span>
             </template>
           </div>
@@ -571,15 +554,15 @@
                   @keydown.enter.prevent="goToLibrary(app.id)"
                   @keydown.space.prevent="goToLibrary(app.id)"
                 >
-                  <div class="library-card__swatch" :style="`background:${resolveScheme(app.themeId, app.schemeId).gradient}`"></div>
+                  <div class="library-card__swatch" :style="'background:' + resolveScheme(app.themeId, app.schemeId).gradient"></div>
                   <div class="cluster library-card__meta">
-                    <span class="status-pill" x-text="`${resolveTheme(app.themeId).name} · ${resolveScheme(app.themeId, app.schemeId).name}`"></span>
+                    <span class="status-pill" x-text="resolveTheme(app.themeId).name + ' · ' + resolveScheme(app.themeId, app.schemeId).name"></span>
                     <span class="library-timestamp" x-text="formatTimestamp(app.updatedAt)"></span>
                   </div>
                   <h3 x-text="app.title"></h3>
                   <p x-text="app.summary"></p>
-                  <div class="tag-row library-card__tags" x-show="app.tags?.length" x-cloak>
-                    <template x-for="tag in app.tags" :key="`${app.id}-${tag}`">
+                  <div class="tag-row library-card__tags" x-show="app.tags && app.tags.length" x-cloak>
+                    <template x-for="tag in app.tags" :key="app.id + '-' + tag">
                       <button
                         type="button"
                         class="tag-chip tag-chip--small"
@@ -607,10 +590,10 @@
                 <div class="library-viewer__head">
                   <div>
                     <p class="mini-label">Selected tool</p>
-                    <h3 x-text="activeLibraryApp?.title"></h3>
-                    <p class="muted-copy" x-text="activeLibraryApp?.summary"></p>
-                    <div class="tag-row" x-show="activeLibraryApp?.tags?.length" x-cloak>
-                      <template x-for="tag in activeLibraryApp?.tags || []" :key="`active-${tag}`">
+                    <h3 x-text="activeLibraryTitle"></h3>
+                    <p class="muted-copy" x-text="activeLibrarySummary"></p>
+                    <div class="tag-row" x-show="hasActiveLibraryTags" x-cloak>
+                      <template x-for="tag in activeLibraryTags" :key="'active-' + tag">
                         <button
                           type="button"
                           class="tag-chip tag-chip--small"
@@ -624,6 +607,15 @@
                   <div class="button-row" style="margin-bottom: 1rem;">
                     <button type="button" class="button button-primary" @click="openLibraryApp(activeLibraryApp.id)">Open Fullscreen</button>
                     <button type="button" class="button button-primary" @click="editLibraryApp(activeLibraryApp.id)">Edit Tool</button>
+                    <button
+                      type="button"
+                      class="button button-secondary"
+                      x-show="canUseExtensionLinks"
+                      x-cloak
+                      @click="copyExtensionLibraryLink(activeLibraryApp.id)"
+                    >
+                      Copy Extension Link
+                    </button>
                     <button type="button" class="button button-secondary" @click="copyLibraryShareLink(activeLibraryApp.id)">Copy Share Link</button>
                     <button type="button" class="button button-secondary" @click="downloadLibraryApp(activeLibraryApp.id)">Download</button>
                     <button type="button" class="button button-ghost" @click="deleteLibraryApp(activeLibraryApp.id)">Delete</button>
@@ -663,16 +655,16 @@
               <p class="eyebrow">Settings</p>
               <h2>Studio theme</h2>
             </div>
-            <span class="status-pill" x-text="`${currentAppTheme.name} · ${currentAppScheme.name}`"></span>
+            <span class="status-pill" x-text="currentAppTheme.name + ' · ' + currentAppScheme.name"></span>
           </div>
 
           <div class="theme-grid">
-            <template x-for="theme in themes" :key="`app-${theme.id}`">
+            <template x-for="theme in themes" :key="'app-' + theme.id">
               <button
                 type="button"
                 class="theme-card"
                 :class="{ 'is-active': appTheme === theme.id }"
-                :style="`--theme-gradient:${theme.gradient}; --theme-accent:${theme.accent};`"
+                :style="'--theme-gradient:' + theme.gradient + '; --theme-accent:' + theme.accent + ';'"
                 @click="selectAppTheme(theme.id)"
               >
                 <span class="theme-card__eyebrow" x-text="theme.label"></span>
@@ -684,7 +676,7 @@
           </div>
 
           <div class="scheme-grid">
-            <template x-for="scheme in currentAppSchemes" :key="`app-${currentAppTheme.id}-${scheme.id}`">
+            <template x-for="scheme in currentAppSchemes" :key="'app-' + currentAppTheme.id + '-' + scheme.id">
               <button
                 type="button"
                 class="scheme-card"
@@ -726,7 +718,7 @@
           <section class="settings-preview">
             <div>
               <p class="mini-label">Host preview</p>
-              <h3 x-text="`${currentAppTheme.name} shell`"></h3>
+              <h3 x-text="currentAppTheme.name + ' shell'"></h3>
               <p class="muted-copy" x-text="currentAppTheme.semanticHint"></p>
             </div>
             <div class="settings-preview__surface">
@@ -750,7 +742,7 @@
           <header class="library-modal__header" :class="{ 'is-expanded': isLibraryHeaderExpanded }">
             <div class="library-modal__header-row">
               <div class="library-modal__header-title">
-                <h2 x-text="activeLibraryApp?.title || 'Saved tool'"></h2>
+                <h2 x-text="activeLibraryModalTitle"></h2>
                 <button
                   type="button"
                   class="library-modal__toggle"
@@ -775,7 +767,7 @@
               x-cloak
             >
               <p class="mini-label">Library tool</p>
-              <p class="muted-copy" x-text="activeLibraryApp?.summary || 'Standalone tool viewer'"></p>
+              <p class="muted-copy" x-text="activeLibraryModalSummary"></p>
             </div>
           </header>
 

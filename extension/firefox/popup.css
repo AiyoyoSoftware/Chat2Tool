@@ -1,0 +1,265 @@
+:root {
+  color-scheme: light;
+  --bg: #f3efe7;
+  --bg-deep: #e8dcc8;
+  --ink: #241b12;
+  --muted: #6a5847;
+  --panel: rgba(255, 250, 244, 0.92);
+  --panel-strong: #fff7ec;
+  --border: rgba(63, 45, 28, 0.12);
+  --accent: #0f6d6a;
+  --accent-deep: #0a4d4b;
+  --accent-soft: rgba(15, 109, 106, 0.14);
+  --danger: #912f2b;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 18px 44px rgba(55, 39, 19, 0.12);
+  --font-display: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-ui: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-width: 380px;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top right, rgba(255, 205, 154, 0.7), transparent 46%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+.popup-shell {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0.95rem;
+}
+
+.hero,
+.panel,
+.status-bar {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.hero {
+  padding: 1rem 1rem 0.95rem;
+}
+
+.eyebrow,
+.mini-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+}
+
+.hero h1,
+.panel h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  line-height: 1.05;
+}
+
+.hero h1 {
+  font-size: 1.55rem;
+}
+
+.panel h2 {
+  font-size: 1.05rem;
+}
+
+.lede,
+.status-bar p {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.panel {
+  padding: 0.9rem;
+}
+
+.panel-head {
+  margin-bottom: 0.75rem;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.72rem 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+
+.button:hover,
+.button:focus-visible {
+  transform: translateY(-1px);
+}
+
+.button:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 76%, white);
+  outline-offset: 2px;
+}
+
+.button-primary {
+  background: var(--accent);
+  color: #f7fffe;
+  box-shadow: 0 12px 24px rgba(15, 109, 106, 0.22);
+}
+
+.button-secondary {
+  background: #fffdf8;
+  color: var(--ink);
+  border: 1px solid var(--border);
+}
+
+.button-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px dashed rgba(63, 45, 28, 0.2);
+}
+
+.stack {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.field span {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.prompt-copy-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(63, 45, 28, 0.1);
+  border-radius: var(--radius-md);
+  background: rgba(255, 252, 247, 0.88);
+}
+
+.prompt-copy-card h3 {
+  margin: 0 0 0.2rem;
+  font-size: 0.98rem;
+}
+
+.prompt-copy-card__copy {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 4.5rem;
+  border: 1px solid rgba(63, 45, 28, 0.14);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.85rem;
+  background: var(--panel-strong);
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.recent-tools {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.recent-tool,
+.empty-state {
+  border: 1px solid rgba(63, 45, 28, 0.1);
+  border-radius: var(--radius-md);
+  padding: 0.78rem 0.82rem;
+  background: rgba(255, 252, 247, 0.88);
+}
+
+.recent-tool__head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 0.5rem;
+}
+
+.recent-tool h3,
+.empty-state h3 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.recent-tool p,
+.empty-state p {
+  margin: 0.28rem 0 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.recent-tool__meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.recent-tool__stamp {
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent-deep);
+}
+
+.recent-tool__actions {
+  display: flex;
+  gap: 0.55rem;
+  margin-top: 0.7rem;
+}
+
+.recent-tool__actions .button {
+  flex: 1 1 0;
+}
+
+.status-bar {
+  padding: 0.78rem 0.9rem;
+}
+
+.status-bar.is-error {
+  border-color: rgba(145, 47, 43, 0.24);
+  background: rgba(255, 239, 236, 0.96);
+}
+
+.status-bar.is-error p {
+  color: var(--danger);
+}

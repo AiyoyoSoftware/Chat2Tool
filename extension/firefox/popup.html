@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Chat2Tool</title>
+    <link rel="stylesheet" href="./popup.css">
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="hero">
+        <p class="eyebrow">Firefox Extension</p>
+        <h1>Chat2Tool</h1>
+        <p class="lede">Stage notes or generated HTML here, then jump straight into the studio.</p>
+      </header>
+
+      <section class="panel actions-panel">
+        <div class="button-row">
+          <button type="button" class="button button-primary" id="open-studio">Open Studio</button>
+          <button type="button" class="button button-secondary" id="open-library">Open Library</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="mini-label">Quick Handoff</p>
+            <h2>Paste and continue</h2>
+          </div>
+        </div>
+
+        <form id="handoff-form" class="stack">
+          <section class="prompt-copy-card" aria-live="polite">
+            <div>
+              <p class="mini-label" id="prompt-label">Extension-safe prompt from the wizard</p>
+              <h3>Copy the current wizard prompt</h3>
+              <p class="prompt-copy-card__copy" id="prompt-hint">Open the studio once to prepare the current extension-safe prompt for this popup.</p>
+            </div>
+
+            <button type="button" class="button button-primary" id="copy-prompt">Copy Prompt</button>
+          </section>
+
+          <label class="field">
+            <span>Generated HTML reply</span>
+            <textarea
+              id="reply"
+              rows="5"
+              placeholder="Paste the LLM's ```html response here to land in preview mode."
+            ></textarea>
+          </label>
+
+          <div class="button-row">
+            <button type="submit" class="button button-primary">Open In Wizard</button>
+            <button type="button" class="button button-ghost" id="clear-handoff">Clear</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="mini-label">Library</p>
+            <h2>Recent tools</h2>
+          </div>
+        </div>
+
+        <div id="recent-tools" class="recent-tools"></div>
+      </section>
+
+      <footer class="status-bar">
+        <p id="status-message">Ready.</p>
+      </footer>
+    </main>
+
+    <script src="./popup.js"></script>
+  </body>
+</html>

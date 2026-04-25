@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Chat2Tool",
+  "version": "__APP_VERSION__",
+  "description": "Turn conversations and notes into reusable Alpine.js tools from a Firefox toolbar popup.",
+  "permissions": [
+    "storage"
+  ],
+  "icons": {
+    "16": "extension/firefox/icons/toolbar.svg",
+    "32": "extension/firefox/icons/toolbar.svg",
+    "48": "extension/firefox/icons/toolbar.svg",
+    "96": "extension/firefox/icons/toolbar.svg"
+  },
+  "action": {
+    "default_title": "Chat2Tool",
+    "default_popup": "extension/firefox/popup.html",
+    "default_area": "navbar",
+    "default_icon": {
+      "16": "extension/firefox/icons/toolbar.svg",
+      "32": "extension/firefox/icons/toolbar.svg"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "chat2tool@llastro.app"
+    }
+  }
+}

@@ -6,6 +6,8 @@ const CUSTOM_SCHEME_ID = "customized";
 const DEFAULT_CUSTOM_COLOR = "#5b6cff";
 const STORAGE_KEY = "llastro-studio-v2";
 const LIBRARY_KEY = "llastro-library-v1";
+const EXTENSION_DRAFT_KEY = "llastro-extension-draft-v1";
+const EXTENSION_STUDIO_STATE_KEY = "llastro-extension-studio-state-v1";
 const LIBRARY_API_PATH = "/api/library";
 const LIBRARY_STORAGE_AUTO = "auto";
 const LIBRARY_STORAGE_API = "api";
@@ -15,7 +17,10 @@ const SHARED_IMPORT_REDIRECT_PARAM = "llastro-route";
 const SHARE_COMPRESSION_FORMAT = "deflate";
 const ASSET_STAMP = typeof window !== "undefined" ? String(window.__LLASTRO_ASSET_STAMP || "") : "";
 const ALPINE_RUNTIME_PATH = "./vendor/alpinejs.min.js";
+const ALPINE_CSP_RUNTIME_PATH = "./vendor/alpinejs-csp.min.js";
 const LUCIDE_RUNTIME_PATH = "./vendor/lucide.min.js";
+const EXTENSION_PREVIEW_HOST_PATH = "preview-host.html";
+const EXTENSION_PROTOCOLS = new Set(["moz-extension:", "chrome-extension:"]);
 const THEMES = [
   {
     id: "flat",
@@ -679,6 +684,26 @@ function getHostedBasePath(pathname = window.location.pathname) {
   const hostname = window.location.hostname.toLowerCase();
   const segments = String(pathname || "/").split("/").filter(Boolean);
   return hostname.endsWith(".github.io") && segments.length ? `/${segments[0]}` : "";
+}
+
+function getExtensionApi() {
+  if (typeof browser !== "undefined" && browser?.runtime?.id) {
+    return browser;
+  }
+
+  return null;
+}
+
+function isExtensionRuntime() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return EXTENSION_PROTOCOLS.has(window.location.protocol) || Boolean(getExtensionApi());
+}
+
+function getPreferredAlpineRuntimePath() {
+  return isExtensionRuntime() ? ALPINE_CSP_RUNTIME_PATH : ALPINE_RUNTIME_PATH;
 }
 
 function getCanonicalAppPath(pathname = window.location.pathname) {
@@ -2511,23 +2536,56 @@ function buildExampleSnippet(themeId, schemeId, customColor = DEFAULT_CUSTOM_COL
     "  view: 'board',",
     "  query: '',",
     "  showComposer: false,",
-    "  draft: { title: '', owner: '', lane: 'Plan' },",
+    "  draftTitle: '',",
+    "  draftOwner: '',",
+    "  draftLane: 'Plan',",
+    "  nextId: 4,",
     "  tasks: [",
     "    { id: 1, title: 'Venue shortlist', owner: 'Mika', lane: 'Plan', note: '3 scenic options left' },",
     "    { id: 2, title: 'Budget guardrails', owner: 'Ari', lane: 'Fund', note: 'Keep travel under 8k' },",
     "    { id: 3, title: 'Welcome pack', owner: 'Jo', lane: 'Craft', note: 'Pair agenda with local guide' }",
     "  ],",
-    "  get filtered() {",
-    "    return this.tasks.filter(task => {",
-    "      const laneMatch = this.view === 'board' || task.lane === this.view;",
-    "      const queryMatch = `${task.title} ${task.owner} ${task.note}`.toLowerCase().includes(this.query.toLowerCase());",
-    "      return laneMatch && queryMatch;",
-    "    });",
+    "  normalizedQuery() {",
+    "    return this.query.trim().toLowerCase();",
+    "  },",
+    "  matchesTask(task) {",
+    "    if (this.view !== 'board' && task.lane !== this.view) {",
+    "      return false;",
+    "    }",
+    "    if (!this.normalizedQuery()) {",
+    "      return true;",
+    "    }",
+    "    return (task.title + ' ' + task.owner + ' ' + task.note).toLowerCase().includes(this.normalizedQuery());",
+    "  },",
+    "  visibleCount() {",
+    "    var count = 0;",
+    "    for (var index = 0; index < this.tasks.length; index += 1) {",
+    "      if (this.matchesTask(this.tasks[index])) {",
+    "        count += 1;",
+    "      }",
+    "    }",
+    "    return count;",
+    "  },",
+    "  resetComposer() {",
+    "    this.draftTitle = '';",
+    "    this.draftOwner = '';",
+    "    this.draftLane = 'Plan';",
     "  },",
     "  addTask() {",
-    "    if (!this.draft.title || !this.draft.owner) return;",
-    "    this.tasks.unshift({ id: Date.now(), ...this.draft, note: 'Added from the composer' });",
-    "    this.draft = { title: '', owner: '', lane: 'Plan' };",
+    "    var title = this.draftTitle.trim();",
+    "    var owner = this.draftOwner.trim();",
+    "    if (!title || !owner) {",
+    "      return;",
+    "    }",
+    "    this.tasks.unshift({",
+    "      id: this.nextId,",
+    "      title: title,",
+    "      owner: owner,",
+    "      lane: this.draftLane,",
+    "      note: 'Added from the composer'",
+    "    });",
+    "    this.nextId += 1;",
+    "    this.resetComposer();",
     "    this.showComposer = false;",
     "  }",
     "}\">",
@@ -2548,7 +2606,7 @@ function buildExampleSnippet(themeId, schemeId, customColor = DEFAULT_CUSTOM_COL
     "        </div>",
     "        <div class=\"metric\">",
     "          <span class=\"muted\">Filtered view</span>",
-    "          <strong x-text=\"filtered.length\"></strong>",
+    "          <strong x-text=\"visibleCount()\"></strong>",
     "        </div>",
     "      </aside>",
     "    </div>",
@@ -2581,15 +2639,15 @@ function buildExampleSnippet(themeId, schemeId, customColor = DEFAULT_CUSTOM_COL
     "      <div class=\"split\">",
     "        <label>",
     "          <span>Title</span>",
-    "          <input x-model=\"draft.title\" placeholder=\"Confirm facilitator\">",
+    "          <input x-model=\"draftTitle\" placeholder=\"Confirm facilitator\">",
     "        </label>",
     "        <label>",
     "          <span>Owner</span>",
-    "          <input x-model=\"draft.owner\" placeholder=\"Owner\">",
+    "          <input x-model=\"draftOwner\" placeholder=\"Owner\">",
     "        </label>",
     "        <label>",
     "          <span>Lane</span>",
-    "          <select x-model=\"draft.lane\">",
+    "          <select x-model=\"draftLane\">",
     "            <option value=\"Plan\">Plan</option>",
     "            <option value=\"Fund\">Fund</option>",
     "            <option value=\"Craft\">Craft</option>",
@@ -2603,15 +2661,13 @@ function buildExampleSnippet(themeId, schemeId, customColor = DEFAULT_CUSTOM_COL
     "  </section>",
     "",
     "  <section class=\"card-grid\">",
-    "    <template x-if=\"filtered.length === 0\">",
-    "      <article class=\"empty-state stack\">",
-    "        <h2>No tasks match this filter.</h2>",
-    "        <p class=\"muted\">Try a different lane or clear the search input.</p>",
-    "      </article>",
-    "    </template>",
+    "    <article class=\"empty-state stack\" x-show=\"visibleCount() === 0\">",
+    "      <h2>No tasks match this filter.</h2>",
+    "      <p class=\"muted\">Try a different lane or clear the search input.</p>",
+    "    </article>",
     "",
-    "    <template x-for=\"task in filtered\" :key=\"task.id\">",
-    "      <article class=\"card stack\">",
+    "    <template x-for=\"task in tasks\" :key=\"task.id\">",
+    "      <article class=\"card stack\" x-show=\"matchesTask(task)\">",
     "        <div class=\"cluster\">",
     "          <span class=\"pill\" x-text=\"task.lane\"></span>",
     "          <strong x-text=\"task.owner\"></strong>",
@@ -2751,7 +2807,7 @@ function buildReferenceFixture(themeId, schemeId, customColor = DEFAULT_CUSTOM_C
     "    </table>",
     "  </section>",
     "",
-    "  <dialog class=\"stack\" x-init=\"$nextTick(() => $el.showModal())\">",
+    "  <dialog class=\"stack\" open>",
     "    <h2>Dialog state</h2>",
     "    <p class=\"muted\">Backdrop, body surface, and action treatments should match the active theme and scheme.</p>",
     "    <div class=\"actions\">",
@@ -2821,6 +2877,7 @@ function createStudioApp() {
     activeLibraryShareLink: "",
     activeLibraryShareLinkSource: "",
     activeLibraryShareLinkRefreshToken: 0,
+    extensionPreviewPayloads: {},
     currentEditingId: "",
     currentEditingSourceTitle: "",
     editorEnabled: false,
@@ -2862,6 +2919,10 @@ function createStudioApp() {
       return normalizeHexColor(this.selectedCustomColor, DEFAULT_CUSTOM_COLOR);
     },
 
+    get canUseExtensionLinks() {
+      return isExtensionRuntime();
+    },
+
     get editorSelectionText() {
       return this.editorSelection?.text || null;
     },
@@ -2888,6 +2949,14 @@ function createStudioApp() {
 
     get editorSelectionMoveHelper() {
       return this.editorSelectionMove?.helperText || "";
+    },
+
+    get canMoveSelectedElementUp() {
+      return Boolean(this.editorSelectionMove && this.editorSelectionMove.canMoveUp);
+    },
+
+    get canMoveSelectedElementDown() {
+      return Boolean(this.editorSelectionMove && this.editorSelectionMove.canMoveDown);
     },
 
     get referenceCoverageLabel() {
@@ -2966,7 +3035,9 @@ function createStudioApp() {
     },
 
     get libraryStatusLabel() {
-      const storageLabel = this.activeLibraryStorage === LIBRARY_STORAGE_LOCAL ? "Browser only" : "Server library";
+      const storageLabel = this.activeLibraryStorage === LIBRARY_STORAGE_LOCAL
+        ? (this.canUseExtensionLinks ? "Extension storage" : "Browser only")
+        : "Server library";
 
       if (!this.publishedApps.length) {
         return `No saved apps · ${storageLabel}`;
@@ -2983,6 +3054,32 @@ function createStudioApp() {
       return this.library.find((app) => app.id === this.activeLibraryId) || null;
     },
 
+    get activeLibraryTitle() {
+      return this.activeLibraryApp ? this.activeLibraryApp.title : "";
+    },
+
+    get activeLibrarySummary() {
+      return this.activeLibraryApp ? this.activeLibraryApp.summary : "";
+    },
+
+    get activeLibraryTags() {
+      return this.activeLibraryApp && Array.isArray(this.activeLibraryApp.tags)
+        ? this.activeLibraryApp.tags
+        : [];
+    },
+
+    get hasActiveLibraryTags() {
+      return this.activeLibraryTags.length > 0;
+    },
+
+    get activeLibraryModalTitle() {
+      return this.activeLibraryTitle || "Saved tool";
+    },
+
+    get activeLibraryModalSummary() {
+      return this.activeLibrarySummary || "Standalone tool viewer";
+    },
+
     get draftTitle() {
       return this.appName.trim() || this.importedAppTitle || "Untitled Tool";
     },
@@ -2994,6 +3091,40 @@ function createStudioApp() {
       }
 
       return `${themeById(spec.app.themeId).name} · ${schemeById(spec.app.themeId, spec.app.schemeId).name}`;
+    },
+
+    get pendingSharedImportTitle() {
+      return this.pendingSharedImport && this.pendingSharedImport.app
+        ? this.pendingSharedImport.app.title
+        : "Open shared tool";
+    },
+
+    get pendingSharedImportSource() {
+      return this.pendingSharedImport && this.pendingSharedImport.exportedFrom
+        ? this.pendingSharedImport.exportedFrom
+        : "Unknown studio";
+    },
+
+    get pendingSharedImportExportedLabel() {
+      return this.pendingSharedImport && this.pendingSharedImport.exportedAt
+        ? this.formatTimestamp(this.pendingSharedImport.exportedAt)
+        : "Unknown time";
+    },
+
+    get pendingSharedImportSummary() {
+      return this.pendingSharedImport && this.pendingSharedImport.app && this.pendingSharedImport.app.summary
+        ? this.pendingSharedImport.app.summary
+        : "No summary included.";
+    },
+
+    get pendingSharedImportTags() {
+      return this.pendingSharedImport && this.pendingSharedImport.app && Array.isArray(this.pendingSharedImport.app.tags)
+        ? this.pendingSharedImport.app.tags
+        : [];
+    },
+
+    get hasPendingSharedImportTags() {
+      return this.pendingSharedImportTags.length > 0;
     },
 
     get isSaveAsNew() {
@@ -3034,6 +3165,14 @@ function createStudioApp() {
     },
 
     get promptFieldLabel() {
+      if (isExtensionRuntime()) {
+        if (this.promptMode === "conversation") {
+          return "Extension-safe prompt for this conversation";
+        }
+
+        return "Extension-safe prompt for ChatGPT";
+      }
+
       if (this.promptMode === "conversation") {
         return "Prompt for this conversation";
       }
@@ -3042,6 +3181,14 @@ function createStudioApp() {
     },
 
     get promptFieldHint() {
+      if (isExtensionRuntime()) {
+        if (this.promptMode === "conversation") {
+          return "Copy this extension-safe prompt so the model stays inside Alpine CSP limits.";
+        }
+
+        return "Copy this extension-safe prompt, send it in ChatGPT, then paste the HTML result back here.";
+      }
+
       if (this.promptMode === "conversation") {
         return "Send this in the same conversation you want to turn into a reusable tool.";
       }
@@ -3071,6 +3218,24 @@ function createStudioApp() {
             `- The studio will inject the derived palette from the chosen seed color ${this.currentSelectedCustomColor}, so do not add custom CSS to simulate it.`
           ]
         : [];
+      const isExtensionPrompt = isExtensionRuntime();
+      const alpineRegistrationLine = isExtensionPrompt
+        ? "- Use inline x-data with simple methods only. Do not include inline <script> tags or Alpine.data registration in extension mode."
+        : "- You may use inline x-data for simple apps or inline <script> tags for Alpine.data registration.";
+      const extensionRuntimeLines = isExtensionPrompt
+        ? [
+            "",
+            "Extension CSP compatibility:",
+            "- This prompt is being copied from extension mode, which runs Alpine's CSP-safe runtime.",
+            "- Keep every Alpine expression and x-data object compatible with Alpine CSP parsing.",
+            "- Do not use optional chaining, template literals, arrow functions, spread syntax, or destructuring inside Alpine expressions or x-data objects.",
+            "- Do not use x-html, insertAdjacentHTML, or any HTML injection pattern.",
+            "- Do not reference global objects such as window, document, console, Math, or JSON inside Alpine expressions.",
+            "- Do not include any <script> tags in the generated tool.",
+            "- Prefer top-level scalar fields and small helper methods over nested draft objects or clever computed syntax.",
+            "- Prefer string concatenation, direct property checks, ternaries, and straightforward method calls."
+          ]
+        : [];
 
       const sharedRuntimeLines = [
         "Return format:",
@@ -3082,7 +3247,7 @@ function createStudioApp() {
         "Runtime contract:",
         `- The first root element must include ${APP_MARKER}, ${THEME_MARKER}=\"theme-id\", and ${SCHEME_MARKER}=\"scheme-id\".`,
         "- Alpine.js and Lucide are already loaded by the host, so use Alpine directives and Lucide placeholders directly.",
-        "- You may use inline x-data for simple apps or inline <script> tags for Alpine.data registration.",
+        alpineRegistrationLine,
         "- Do not include script tags for Alpine.js or Lucide.",
         "- Do not include <style>, <link rel=\"stylesheet\">, CSS frameworks, or external JS.",
         "- Do not rely on any assets, fonts, APIs, or network requests.",
@@ -3096,6 +3261,7 @@ function createStudioApp() {
         "- Use semantic order and logical layout; do not fake RTL by reversing text manually.",
         "- When an icon helps, use Lucide placeholders such as <i data-lucide=\"calendar\" aria-hidden=\"true\"></i>.",
         "- Prefer Lucide over emoji or custom inline SVG for interface icons, and keep text labels visible for important actions.",
+        ...extensionRuntimeLines,
         "",
         "Semantic structure:",
         "- Use semantic HTML first: header, nav, main, section, article, aside, form, fieldset, table, dialog, footer.",
@@ -3344,6 +3510,7 @@ function createStudioApp() {
       this.selectedTheme = themeId;
       this.selectedScheme = themeById(themeId).schemes[0]?.id || "";
       this.applySelectedThemeToDraft();
+      this.updateThemePreviewFrame();
       this.saveState();
       this.scrollThemePickerTarget("themeSchemeHeading");
     },
@@ -3363,6 +3530,7 @@ function createStudioApp() {
     selectScheme(schemeId) {
       this.selectedScheme = normalizeSchemeId(this.selectedTheme, schemeId);
       this.applySelectedThemeToDraft();
+      this.updateThemePreviewFrame();
       this.saveState();
       this.scrollThemePickerTarget("themePreviewPanel");
     },
@@ -3543,12 +3711,147 @@ function createStudioApp() {
       }).format(new Date(value));
     },
 
+    async getExtensionStorageValue(key) {
+      const extensionApi = getExtensionApi();
+      if (!extensionApi?.storage?.local?.get) {
+        return undefined;
+      }
+
+      const payload = await extensionApi.storage.local.get(key);
+      return payload?.[key];
+    },
+
+    async setExtensionStorageValue(key, value) {
+      const extensionApi = getExtensionApi();
+      if (!extensionApi?.storage?.local?.set) {
+        return false;
+      }
+
+      await extensionApi.storage.local.set({ [key]: value });
+      return true;
+    },
+
+    async removeExtensionStorageValue(key) {
+      const extensionApi = getExtensionApi();
+      if (!extensionApi?.storage?.local?.remove) {
+        return false;
+      }
+
+      await extensionApi.storage.local.remove(key);
+      return true;
+    },
+
+    persistExtensionStudioState() {
+      if (!isExtensionRuntime()) {
+        return;
+      }
+
+      void this.setExtensionStorageValue(EXTENSION_STUDIO_STATE_KEY, {
+        promptText: this.promptText,
+        promptFieldLabel: this.promptFieldLabel,
+        promptFieldHint: this.promptFieldHint,
+        promptMode: this.promptMode,
+        selectedTheme: this.selectedTheme,
+        selectedScheme: this.selectedScheme,
+        selectedCustomColor: this.selectedCustomColor,
+        appBrief: this.appBrief,
+        updatedAt: new Date().toISOString()
+      });
+    },
+
+    buildExtensionLibraryUrl(appId = "", options = {}) {
+      const extensionApi = getExtensionApi();
+      if (!extensionApi?.runtime?.getURL) {
+        return "";
+      }
+
+      const { fullscreen = false } = options;
+      const route = appId ? `#library/${encodeURIComponent(appId)}` : "#library";
+      const baseUrl = new URL(extensionApi.runtime.getURL("index.html"));
+
+      if (fullscreen) {
+        baseUrl.searchParams.set("fullscreen", "1");
+      } else {
+        baseUrl.searchParams.delete("fullscreen");
+      }
+
+      baseUrl.hash = route;
+      return baseUrl.toString();
+    },
+
+    async consumePendingExtensionDraft() {
+      const draft = await this.getExtensionStorageValue(EXTENSION_DRAFT_KEY);
+      if (!draft || typeof draft !== "object") {
+        return false;
+      }
+
+      await this.removeExtensionStorageValue(EXTENSION_DRAFT_KEY);
+
+      const nextBrief = typeof draft.appBrief === "string" ? draft.appBrief.trim() : "";
+      const nextResponse = typeof draft.rawResponse === "string" ? draft.rawResponse.trim() : "";
+      const nextName = typeof draft.appName === "string" ? draft.appName.trim() : "";
+      const nextTags = typeof draft.appTags === "string" ? draft.appTags : "";
+      const nextThemeId = typeof draft.selectedTheme === "string" ? normalizeThemeId(draft.selectedTheme) : "";
+      const nextSchemeId = nextThemeId && typeof draft.selectedScheme === "string"
+        ? normalizeSchemeId(nextThemeId, draft.selectedScheme)
+        : "";
+      const nextStep = typeof draft.currentStudioStep === "string" ? draft.currentStudioStep : "";
+
+      if (!nextBrief && !nextResponse && !nextName && !nextTags && !nextThemeId) {
+        return false;
+      }
+
+      if (nextThemeId) {
+        this.selectedTheme = nextThemeId;
+      }
+      if (nextSchemeId) {
+        this.selectedScheme = nextSchemeId;
+      }
+      if (typeof draft.selectedCustomColor === "string") {
+        this.selectedCustomColor = normalizeHexColor(draft.selectedCustomColor, DEFAULT_CUSTOM_COLOR);
+      }
+      if (nextBrief) {
+        this.promptMode = "custom";
+        this.appBrief = nextBrief;
+      }
+      if (nextResponse) {
+        this.rawResponse = nextResponse;
+      }
+      if (nextName) {
+        this.appName = nextName;
+      }
+      if (nextTags) {
+        this.appTags = nextTags;
+      }
+
+      this.skipStudioResetOnNextEntry = true;
+
+      if (nextResponse) {
+        this.importResponse(true);
+        this.currentStudioStep = "preview";
+        this.statusMessage = "Extension handoff loaded into the studio.";
+      } else if (nextStep && this.studioSteps.some((step) => step.id === nextStep)) {
+        this.currentStudioStep = nextStep;
+        this.statusMessage = "Extension draft loaded into the studio.";
+      } else if (nextBrief) {
+        this.currentStudioStep = "handoff";
+        this.statusMessage = "Extension draft loaded into the studio.";
+      }
+
+      this.saveState();
+      return true;
+    },
+
     async boot() {
       await this.loadFrameworkCss();
       await this.loadAlpineRuntime();
       await this.loadLucideRuntime();
       await this.loadLibrary();
       this.restoreState();
+      if (isExtensionRuntime()) {
+        this.editorEnabled = false;
+      }
+      await this.consumePendingExtensionDraft();
       this.applyAppTheme();
       window.addEventListener("message", (event) => this.handlePreviewEditorMessage(event));
       window.addEventListener("hashchange", () => void this.handleLocationChange());
@@ -3564,6 +3867,8 @@ function createStudioApp() {
         this.importResponse(true);
       }
 
+      this.updateThemePreviewFrame();
+      this.persistExtensionStudioState();
       this.syncRouteFromLocation();
       if (hasIncomingSharedImport && this.pendingSharedImport) {
         this.statusMessage = `Shared tool "${this.pendingSharedImport.app.title}" is ready to review.`;
@@ -3571,12 +3876,17 @@ function createStudioApp() {
     },
 
     handlePreviewEditorMessage(event) {
+      const data = event.data;
+      if (data?.type === "llastro-preview-host-ready" && typeof data.slot === "string") {
+        this.postExtensionPreview(data.slot);
+        return;
+      }
+
       const previewWindow = this.$refs.previewFrame?.contentWindow;
       if (previewWindow && event.source !== previewWindow) {
         return;
       }
 
-      const data = event.data;
       if (!data || typeof data.type !== "string" || !data.type.startsWith("llastro-editor-")) {
         return;
       }
@@ -3632,12 +3942,19 @@ function createStudioApp() {
 
       const appHtml = this.normalizedAppHtml || this.wrapWithRoot("");
       this.renderPreview(
-        this.buildPreviewDocument(appHtml, this.draftTitle, { editorEnabled: this.editorEnabled })
+        this.buildPreviewPayload(appHtml, this.draftTitle, { editorEnabled: this.editorEnabled })
       );
       void this.refreshCurrentShareLink();
     },
 
     toggleEditorMode() {
+      if (isExtensionRuntime()) {
+        this.editorEnabled = false;
+        this.statusMessage = "Edit mode is unavailable in the Firefox extension preview.";
+        this.saveState();
+        return;
+      }
+
       this.editorEnabled = !this.editorEnabled;
       this.renderStudioPreview();
       this.statusMessage = this.editorEnabled
@@ -3936,7 +4253,7 @@ function createStudioApp() {
 
     async loadAlpineRuntime() {
       try {
-        const response = await fetch(this.withAssetStamp(ALPINE_RUNTIME_PATH), { cache: "no-store" });
+        const response = await fetch(this.withAssetStamp(getPreferredAlpineRuntimePath()), { cache: "no-store" });
         if (!response.ok) {
           throw new Error(`alpine runtime responded with ${response.status}`);
         }
@@ -4074,6 +4391,7 @@ function createStudioApp() {
 
     applySelectedThemeToDraft() {
       if (!this.normalizedAppHtml) {
+        this.updateThemePreviewFrame();
         this.saveState();
         return;
       }
@@ -4106,6 +4424,7 @@ function createStudioApp() {
       this.importedAppTitle = meta.title;
       this.applyAppTitleToDraft();
       this.applyAppTagsToDraft();
+      this.updateThemePreviewFrame();
       this.statusMessage = `Tool theme updated to ${themeById(nextThemeId).name} · ${schemeById(nextThemeId, nextSchemeId).name}.`;
       this.saveState();
     },
@@ -4320,26 +4639,103 @@ function createStudioApp() {
       ].filter(Boolean).join("\n");
     },
 
-    renderPreview(documentHtml, refName = "previewFrame") {
-      const frame = this.$refs[refName];
-      if (frame) {
-        frame.srcdoc = documentHtml;
+    buildPreviewPayload(appHtml, title = "llastro preview", options = {}) {
+      return {
+        title,
+        appHtml,
+        frameworkCss: this.frameworkCss,
+        editorEnabled: Boolean(options.editorEnabled) && !isExtensionRuntime(),
+        previewEditorCss: PREVIEW_EDITOR_CSS
+      };
+    },
+
+    buildExtensionPreviewHostUrl(refName) {
+      const extensionApi = getExtensionApi();
+      if (!extensionApi?.runtime?.getURL) {
+        return "";
       }
+
+      const url = new URL(extensionApi.runtime.getURL(EXTENSION_PREVIEW_HOST_PATH));
+      url.searchParams.set("slot", refName);
+      if (ASSET_STAMP) {
+        url.searchParams.set("v", ASSET_STAMP);
+      }
+      return url.toString();
+    },
+
+    postExtensionPreview(refName) {
+      const frame = this.$refs[refName];
+      const payload = this.extensionPreviewPayloads?.[refName];
+      if (!frame?.contentWindow || !payload) {
+        return;
+      }
+
+      const plainPayload = JSON.parse(JSON.stringify(payload));
+      frame.contentWindow.postMessage({
+        type: "llastro-preview-render",
+        slot: refName,
+        payload: plainPayload
+      }, "*");
+    },
+
+    updateThemePreviewFrame() {
+      const appHtml = this.currentStudioStep === "theme"
+        ? buildReferenceFixture(this.currentTheme.id, this.currentScheme.id, this.currentSelectedCustomColor)
+        : "";
+      this.renderPreview(
+        this.buildPreviewPayload(
+          appHtml,
+          `${this.currentTheme.name} ${this.currentScheme.name} semantic preview`
+        ),
+        "themePreviewFrame"
+      );
+    },
+
+    renderPreview(payload, refName = "previewFrame") {
+      const frame = this.$refs[refName];
+      if (!frame) {
+        return;
+      }
+
+      if (!isExtensionRuntime()) {
+        frame.setAttribute("sandbox", "allow-scripts allow-forms allow-modals");
+        frame.srcdoc = this.buildPreviewDocument(
+          payload.appHtml,
+          payload.title,
+          { editorEnabled: payload.editorEnabled }
+        );
+        return;
+      }
+
+      this.extensionPreviewPayloads[refName] = {
+        title: payload.title,
+        appHtml: payload.appHtml,
+        frameworkCss: payload.frameworkCss,
+        editorEnabled: false,
+        previewEditorCss: payload.previewEditorCss
+      };
+      frame.setAttribute("sandbox", "allow-scripts allow-forms allow-modals");
+
+      const hostUrl = this.buildExtensionPreviewHostUrl(refName);
+      if (!hostUrl) {
+        return;
+      }
+
+      if (frame.dataset.previewHostUrl !== hostUrl) {
+        frame.dataset.previewHostUrl = hostUrl;
+        frame.onload = () => this.postExtensionPreview(refName);
+        frame.src = hostUrl;
+        return;
+      }
+
+      this.postExtensionPreview(refName);
     },
 
     renderActiveLibraryPreview() {
       const app = this.activeLibraryApp;
-      const documentHtml = app ? this.buildPreviewDocument(app.html, app.title) : "";
-      const frame = this.$refs.libraryFrame;
-      const modalFrame = this.$refs.libraryModalFrame;
-
-      if (frame) {
-        frame.srcdoc = documentHtml;
-      }
-
-      if (modalFrame) {
-        modalFrame.srcdoc = documentHtml;
-      }
+      const payload = this.buildPreviewPayload(app ? app.html : "", app?.title || "Saved tool");
+      this.renderPreview(payload, "libraryFrame");
+      this.renderPreview(payload, "libraryModalFrame");
 
       void this.refreshActiveLibraryShareLink();
     },
@@ -4500,6 +4896,21 @@ function createStudioApp() {
       this.statusMessage = `Preparing share link for "${app.title}". Tap again in a moment.`;
     },
 
+    async copyExtensionLibraryLink(appId) {
+      const app = this.library.find((entry) => entry.id === appId);
+      if (!app) {
+        return;
+      }
+
+      const url = this.buildExtensionLibraryUrl(appId, { fullscreen: true });
+      if (!url) {
+        this.statusMessage = "Extension deep links are unavailable in this context.";
+        return;
+      }
+
+      await this.copyText(url, `Extension link for "${app.title}" copied.`);
+    },
+
     confirmSharedImport() {
       const spec = this.pendingSharedImport;
       if (!spec) {
@@ -4649,7 +5060,7 @@ function createStudioApp() {
         });
     },
 
-    readLocalLibrary() {
+    readBrowserLibraryFallback() {
       try {
         const raw = localStorage.getItem(LIBRARY_KEY);
         if (!raw) {
@@ -4663,9 +5074,33 @@ function createStudioApp() {
       }
     },
 
+    async readLocalLibrary() {
+      if (!this.canUseExtensionLinks) {
+        return this.readBrowserLibraryFallback();
+      }
+
+      try {
+        const storedLibrary = await this.getExtensionStorageValue(LIBRARY_KEY);
+        if (typeof storedLibrary === "undefined") {
+          const fallbackLibrary = this.readBrowserLibraryFallback();
+          if (fallbackLibrary.length) {
+            await this.setExtensionStorageValue(LIBRARY_KEY, fallbackLibrary);
+          }
+          return fallbackLibrary;
+        }
+
+        const library = this.normalizeLibraryPayload(storedLibrary);
+        localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+        return library;
+      } catch (error) {
+        console.error(error);
+        return this.readBrowserLibraryFallback();
+      }
+    },
+
     shouldForceLocalLibraryStorage() {
       const hostname = window.location.hostname.toLowerCase();
-      return window.location.protocol === "file:" || hostname.endsWith(".github.io");
+      return window.location.protocol === "file:" || hostname.endsWith(".github.io") || this.canUseExtensionLinks;
     },
 
     withAssetStamp(path) {
@@ -4681,8 +5116,11 @@ function createStudioApp() {
       return `${absolutePath}${separator}v=${encodeURIComponent(ASSET_STAMP)}`;
     },
 
-    writeLocalLibrary(nextLibrary = this.library) {
+    async writeLocalLibrary(nextLibrary = this.library) {
       const library = this.normalizeLibraryPayload(nextLibrary);
+      if (this.canUseExtensionLinks) {
+        await this.setExtensionStorageValue(LIBRARY_KEY, library);
+      }
       localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
       this.library = library;
       return library;
@@ -4711,11 +5149,11 @@ function createStudioApp() {
     async saveLibrary(nextLibrary = this.library) {
       if (this.shouldForceLocalLibraryStorage()) {
         this.activeLibraryStorage = LIBRARY_STORAGE_LOCAL;
-        return this.writeLocalLibrary(nextLibrary);
+        return await this.writeLocalLibrary(nextLibrary);
       }
 
       if (this.activeLibraryStorage === LIBRARY_STORAGE_LOCAL) {
-        return this.writeLocalLibrary(nextLibrary);
+        return await this.writeLocalLibrary(nextLibrary);
       }
 
       try {
@@ -4739,12 +5177,16 @@ function createStudioApp() {
     },
 
     async loadLibrary() {
-      const localLibrary = this.readLocalLibrary();
+      const localLibrary = await this.readLocalLibrary();
 
       if (this.shouldForceLocalLibraryStorage()) {
         this.activeLibraryStorage = LIBRARY_STORAGE_LOCAL;
         this.library = localLibrary;
-        if (window.location.hostname.toLowerCase().endsWith(".github.io")) {
+        if (this.canUseExtensionLinks) {
+          this.statusMessage = localLibrary.length
+            ? "Firefox extension detected. Loaded the extension library."
+            : "Firefox extension detected. Using extension storage for saved tools.";
+        } else if (window.location.hostname.toLowerCase().endsWith(".github.io")) {
           this.statusMessage = localLibrary.length
             ? "GitHub Pages detected. Loaded the browser library."
             : "GitHub Pages detected. Using browser storage for saved tools.";
@@ -4916,6 +5358,7 @@ function createStudioApp() {
       };
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      this.persistExtensionStudioState();
     },
 
     restoreState() {
