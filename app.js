@@ -25,7 +25,7 @@ const THEMES = [
     semanticHint: "Prefer clean blocks, strong color sections, simple icon rows, and straightforward content hierarchy.",
     semanticCues: [
       "Use header, nav, section, article, form, and footer with minimal decoration.",
-      "Great for dashboards, calculators, admin tools, educational tools, and lightweight productivity apps.",
+      "Great for dashboards, calculators, admin tools, educational tools, and lightweight productivity tools.",
       "Favor solid fills, crisp spacing, and no decorative chrome beyond color and type."
     ],
     schemes: [
@@ -59,7 +59,7 @@ const THEMES = [
     semanticHint: "Prefer clean dashboard surfaces, subtle elevation, quiet hero cards, and functional form layouts.",
     semanticCues: [
       "Use header, nav, section, article, form, table, and footer with practical structure.",
-      "Great for CRMs, dashboards, launch tools, analytics views, and polished productivity apps.",
+      "Great for CRMs, dashboards, launch tools, analytics views, and polished productivity tools.",
       "Favor light elevation, subtle gradients, and restrained color instead of hard-edged stark minimalism."
     ],
     schemes: [
@@ -93,7 +93,7 @@ const THEMES = [
     semanticHint: "Prefer oversized rounded cards, recessed inputs, soft action pills, and tactile, calm layouts.",
     semanticCues: [
       "Use nav, header, section, aside, form, dialog, and footer with minimal nesting.",
-      "Great for wellness tools, focus timers, habit dashboards, premium utilities, and personal companion apps.",
+      "Great for wellness tools, focus timers, habit dashboards, premium utilities, and personal companion tools.",
       "Favor plush surfaces, roomy spacing, rounded icon rows, and tactile control groups."
     ],
     schemes: [
@@ -127,7 +127,7 @@ const THEMES = [
     semanticHint: "Use translucent cards, layered sections, floating toolbars, and clean premium layouts.",
     semanticCues: [
       "Use header, nav, section, aside, dialog, and footer with restrained structure.",
-      "Great for portfolio tools, media pickers, dashboards, premium utilities, and companion apps.",
+      "Great for portfolio tools, media pickers, dashboards, premium utilities, and companion tools.",
       "Favor soft blur, transparent panels, subtle highlights, and vivid gradient backgrounds."
     ],
     schemes: [
@@ -2969,7 +2969,7 @@ function createStudioApp() {
       const storageLabel = this.activeLibraryStorage === LIBRARY_STORAGE_LOCAL ? "Browser only" : "Server library";
 
       if (!this.publishedApps.length) {
-        return `No saved apps · ${storageLabel}`;
+        return `No saved tools · ${storageLabel}`;
       }
 
       if (this.filteredLibraryApps.length === this.publishedApps.length) {
@@ -3082,11 +3082,11 @@ function createStudioApp() {
         "Runtime contract:",
         `- The first root element must include ${APP_MARKER}, ${THEME_MARKER}=\"theme-id\", and ${SCHEME_MARKER}=\"scheme-id\".`,
         "- Alpine.js and Lucide are already loaded by the host, so use Alpine directives and Lucide placeholders directly.",
-        "- You may use inline x-data for simple apps or inline <script> tags for Alpine.data registration.",
+        "- You may use inline x-data for simple tools or inline <script> tags for Alpine.data registration.",
         "- Do not include script tags for Alpine.js or Lucide.",
         "- Do not include <style>, <link rel=\"stylesheet\">, CSS frameworks, or external JS.",
         "- Do not rely on any assets, fonts, APIs, or network requests.",
-        "- Keep everything inside one root app element.",
+        "- Keep everything inside one root tool element.",
         "- Keep implementation self-contained and host-safe.",
         "- Add data-llastro-title=\"Tool Name\" to the root with a concise title for the saved tool.",
         "- Add data-llastro-summary=\"One sentence summary\" to the root with a clear library summary.",
@@ -3115,7 +3115,7 @@ function createStudioApp() {
         "- Keep mutable state minimal.",
         "- Compute derived output instead of duplicating state.",
         "- Keep naming clean and readable.",
-        "- Prefer a single Alpine component unless the app genuinely benefits from a small registration script.",
+        "- Prefer a single Alpine component unless the tool genuinely benefits from a small registration script.",
         "- Avoid tangled event logic.",
         "",
         "Theme catalog:",
@@ -4186,7 +4186,7 @@ function createStudioApp() {
         node.remove();
         issues.push({
           level: "warning",
-          text: "Removed an external script reference. Generated apps are expected to run on the built-in Alpine and Lucide runtime plus inline code only."
+          text: "Removed an external script reference. Generated tools are expected to run on the built-in Alpine and Lucide runtime plus inline code only."
         });
       });
 
